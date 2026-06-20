@@ -105,6 +105,9 @@ describe("TrackerService", () => {
     expect(service.getSnapshot().following).toBe(false);
     expect(statuses.some((status) => status.state === "error")).toBe(true);
 
+    service.applyHotkey("toggle-following");
+    expect(service.getSnapshot().following).toBe(false);
+
     offStatus();
   });
 

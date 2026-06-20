@@ -79,6 +79,9 @@ export class PrompterSession {
 
   applyHotkey(action: HotkeyAction): void {
     if (action === "toggle-following") {
+      if (!this.state.following && this.state.sourceStatus.state === "error") {
+        return;
+      }
       this.state = { ...this.state, following: !this.state.following };
       this.emit();
       return;

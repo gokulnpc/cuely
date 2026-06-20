@@ -86,6 +86,9 @@ export class TrackerService {
 
   applyHotkey(action: HotkeyAction): void {
     if (action === "toggle-following") {
+      if (!this.following && this.sourceStatus.state === "error") {
+        return;
+      }
       this.following = !this.following;
       return;
     }
