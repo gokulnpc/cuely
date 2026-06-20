@@ -16,6 +16,11 @@ export interface DisplayInfo {
   bounds: Rect;
 }
 
+export interface ScriptPreset {
+  label: string;
+  path: string;
+}
+
 export type HotkeyAction =
   | "next"
   | "prev"
@@ -29,6 +34,7 @@ export interface CuelyBridge {
   listDisplays(): Promise<DisplayInfo[]>;
   moveToDisplay(displayId: number): Promise<void>;
   setMirror(on: boolean): Promise<void>;
+  listScriptPresets(): Promise<ScriptPreset[]>;
   loadScript(path?: string): Promise<CueScript>;
   selectSource(kind: "mock" | "cloud" | "native", opts?: Record<string, unknown>): Promise<void>;
   triggerHotkey(action: HotkeyAction): Promise<void>;

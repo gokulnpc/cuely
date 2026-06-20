@@ -67,6 +67,14 @@ title: Demo Script
     expect(positions).toContain(0);
   });
 
+  it("lists script presets for renderer selectors", async () => {
+    const bridge = createCuelyBridge({ script: createDemoScript() });
+    const presets = await bridge.listScriptPresets();
+
+    expect(presets.length).toBeGreaterThan(0);
+    expect(presets[0]?.path).toContain("scripts/");
+  });
+
   it("drives renderer session from mock source tracker events", async () => {
     const script: CueScript = {
       version: 1,

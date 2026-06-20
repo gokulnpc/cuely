@@ -5,7 +5,7 @@ import type { TrackerEvent } from "../core/tracker";
 import { CloudStreamingSource } from "../sources/cloud-source";
 import { MockTranscriptSource } from "../sources/mock-source";
 import { NativeTranscriptSource } from "../sources/native-source";
-import type { CuelyBridge, DisplayInfo, HotkeyAction } from "../shared/bridge";
+import type { CuelyBridge, DisplayInfo, HotkeyAction, ScriptPreset } from "../shared/bridge";
 import { TrackerService } from "./tracker-service";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -13,11 +13,13 @@ import { resolve } from "node:path";
 export interface BridgeOptions {
   script: CueScript;
   cwd?: string;
+  scriptPresets?: ScriptPreset[];
 }
 
 export function createCuelyBridge(options: BridgeOptions): CuelyBridge {
   let activeScript = options.script;
   const cwd = options.cwd ?? process.cwd();
+  const scriptPresets = options.scriptPresets ?? defaultScriptPresets();
   const hotkeyListeners = new Set<(action: HotkeyAction) => void>();
   const trackerListeners = new Set<(event: TrackerEvent) => void>();
   const sourceStatusListeners = new Set<(status: SourceStatus) => void>();
@@ -62,6 +64,9 @@ export function createCuelyBridge(options: BridgeOptions): CuelyBridge {
     async setMirror(_on: boolean): Promise<void> {
       void _on;
       return;
+    },
+    async listScriptPresets(): Promise<ScriptPreset[]> {
+      return scriptPresets;
     },
     async loadScript(path?: string): Promise<CueScript> {
       if (!path) {
@@ -155,4 +160,11 @@ function validateCueScriptJson(raw: unknown): CueScript {
     throw new Error("Cue script JSON must include a non-empty cues array.");
   }
   return raw as CueScript;
+}
+
+function defaultScriptPresets(): ScriptPreset[] {
+  return [
+    { label: "Q3 Review (Markdown)", path: "scripts/q3-review.md" },
+    { label: "Q3 Review (JSON)", path: "scripts/q3-review.json" },
+  ];
 }

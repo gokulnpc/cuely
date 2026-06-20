@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "title": "Q3 Review",
+  "cues": [
+    {
+      "id": "headline",
+      "text": "Open with the headline number",
+      "keywords": ["revenue", "growth", "headline"],
+      "notes": "Revenue up 18% QoQ."
+    },
+    {
+      "id": "enterprise",
+      "text": "Why it moved: enterprise renewals",
+      "keywords": ["enterprise", "renewals", "churn"]
+    },
+    {
+      "id": "ask",
+      "text": "What we're asking for",
+      "keywords": ["ask", "budget", "headcount"]
+    }
+  ]
+}

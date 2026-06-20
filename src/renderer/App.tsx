@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { MockTranscriptSource } from "../sources/mock-source";
 import { createDemoScript, createDemoTranscript } from "../shared/demo-script";
-import type { CuelyBridge, HotkeyAction } from "../shared/bridge";
+import type { CuelyBridge, HotkeyAction, ScriptPreset } from "../shared/bridge";
 import { getCuelyBridge } from "./bridge-client";
 import { PrompterSession, type PrompterViewModel } from "./prompter-session";
+import { loadScriptIntoSession } from "./script-loader";
 
 function ThemeContainer({ model }: { model: PrompterViewModel }): ReactElement {
   if (!model.visible) {
@@ -132,7 +133,8 @@ function LocalDemoApp(): ReactElement {
 function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
   const [session, setSession] = useState<PrompterSession>(() => new PrompterSession(createDemoScript()));
   const [model, setModel] = useState<PrompterViewModel>(session.getViewModel());
-  const [scriptPath, setScriptPath] = useState("demo-script.md");
+  const [scriptPath, setScriptPath] = useState("scripts/q3-review.md");
+  const [scriptPresets, setScriptPresets] = useState<ScriptPreset[]>([]);
   const [scriptStatus, setScriptStatus] = useState<string | null>(null);
   const sessionRef = useRef(session);
 
@@ -149,6 +151,17 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
     let stopHotkeys: (() => void) | null = null;
 
     void (async () => {
+      const presets = await bridge.listScriptPresets();
+      if (active) {
+        setScriptPresets(presets);
+        if (presets.length > 0) {
+          const firstPreset = presets[0];
+          if (firstPreset) {
+            setScriptPath(firstPreset.path);
+          }
+        }
+      }
+
       const script = await bridge.loadScript();
       if (!active) {
         return;
@@ -198,16 +211,16 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
   }
 
   async function loadScriptFromPath(): Promise<void> {
-    try {
-      const nextScript = await bridge.loadScript(scriptPath.trim());
-      const nextSession = new PrompterSession(nextScript);
-      sessionRef.current = nextSession;
-      setSession(nextSession);
-      setScriptStatus(`Loaded script: ${nextScript.title ?? scriptPath.trim()}`);
-      await bridge.selectSource("mock", { chunks: createDemoTranscript() });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load script.";
-      setScriptStatus(message);
+    const result = await loadScriptIntoSession({
+      bridge,
+      path: scriptPath.trim(),
+      currentSession: sessionRef.current,
+      demoChunks: createDemoTranscript(),
+    });
+    setScriptStatus(result.status);
+    if (result.success) {
+      sessionRef.current = result.session;
+      setSession(result.session);
     }
   }
 
@@ -225,6 +238,19 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
         onToggleFollowing={() => trigger("toggle-following")}
       />
       <div style={{ padding: "0 0.75rem 0.75rem 0.75rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        {scriptPresets.length > 0 ? (
+          <select
+            value={scriptPath}
+            onChange={(event) => setScriptPath(event.target.value)}
+            style={{ minWidth: "220px" }}
+          >
+            {scriptPresets.map((preset) => (
+              <option key={preset.path} value={preset.path}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <input
           type="text"
           value={scriptPath}
