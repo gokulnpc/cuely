@@ -12,18 +12,23 @@ export interface ScriptLoadResult {
 export async function loadScriptIntoSession(params: {
   bridge: CuelyBridge;
   path: string;
+  sourceKind: "mock" | "cloud" | "native";
   currentSession: PrompterSession;
   demoChunks: TranscriptChunk[];
 }): Promise<ScriptLoadResult> {
-  const { bridge, path, currentSession, demoChunks } = params;
+  const { bridge, path, sourceKind, currentSession, demoChunks } = params;
   try {
     const nextScript = await bridge.loadScript(path);
     const nextSession = new PrompterSession(nextScript);
     try {
-      await bridge.selectSource("mock", { chunks: demoChunks });
+      if (sourceKind === "mock") {
+        await bridge.selectSource("mock", { chunks: demoChunks });
+      } else {
+        await bridge.selectSource(sourceKind);
+      }
       return {
         session: nextSession,
-        status: `Loaded script: ${nextScript.title ?? path}`,
+        status: `Loaded script: ${nextScript.title ?? path} (source: ${sourceKind})`,
         success: true,
         sourceReady: true,
       };

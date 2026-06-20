@@ -28,7 +28,9 @@ function createBridgeStub(overrides: Partial<CuelyBridge> = {}): CuelyBridge {
     async loadScript(): Promise<CueScript> {
       return createDemoScript();
     },
-    async selectSource(): Promise<void> {
+    async selectSource(_kind: "mock" | "cloud" | "native", _opts?: Record<string, unknown>): Promise<void> {
+      void _kind;
+      void _opts;
       return;
     },
     async triggerHotkey(_action: HotkeyAction): Promise<void> {
@@ -67,6 +69,7 @@ describe("loadScriptIntoSession", () => {
     const result = await loadScriptIntoSession({
       bridge,
       path: "scripts/loaded.md",
+      sourceKind: "mock",
       currentSession: previousSession,
       demoChunks: createDemoTranscript(),
     });
@@ -98,6 +101,7 @@ describe("loadScriptIntoSession", () => {
     const result = await loadScriptIntoSession({
       bridge,
       path: "scripts/loaded.md",
+      sourceKind: "mock",
       currentSession: previousSession,
       demoChunks: createDemoTranscript(),
     });
@@ -108,6 +112,35 @@ describe("loadScriptIntoSession", () => {
     expect(result.session.getViewModel().title).toBe("Loaded Script");
     expect(result.status).toMatch(/source failed/i);
     expect(selectSourceCalls).toBe(1);
+  });
+
+  it("uses selected non-mock source kind during script load flow", async () => {
+    let selectedKind: "mock" | "cloud" | "native" | null = null;
+    const bridge = createBridgeStub({
+      async loadScript(): Promise<CueScript> {
+        return {
+          version: 1,
+          title: "Loaded Script",
+          cues: [{ id: "loaded", text: "Loaded cue", keywords: ["loaded"] }],
+        };
+      },
+      async selectSource(kind: "mock" | "cloud" | "native"): Promise<void> {
+        selectedKind = kind;
+      },
+    });
+    const previousSession = new PrompterSession(createDemoScript());
+
+    const result = await loadScriptIntoSession({
+      bridge,
+      path: "scripts/loaded.md",
+      sourceKind: "cloud",
+      currentSession: previousSession,
+      demoChunks: createDemoTranscript(),
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.sourceReady).toBe(true);
+    expect(selectedKind).toBe("cloud");
   });
 
   it("keeps existing session when script load fails", async () => {
@@ -125,6 +158,7 @@ describe("loadScriptIntoSession", () => {
     const result = await loadScriptIntoSession({
       bridge,
       path: "scripts/missing.md",
+      sourceKind: "mock",
       currentSession: previousSession,
       demoChunks: createDemoTranscript(),
     });

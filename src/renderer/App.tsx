@@ -236,6 +236,7 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
     const result = await loadScriptIntoSession({
       bridge,
       path: scriptPath.trim(),
+      sourceKind,
       currentSession: sessionRef.current,
       demoChunks: createDemoTranscript(),
     });
