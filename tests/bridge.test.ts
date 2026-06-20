@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import type { CueScript } from "../src/core/cue-model";
 import { createCuelyBridge } from "../src/main/bridge";
+import { PrompterSession } from "../src/renderer/prompter-session";
 import { createDemoScript } from "../src/shared/demo-script";
 
 function minimalScript(): CueScript {
@@ -65,4 +66,50 @@ title: Demo Script
     expect(positions).toContain(1);
     expect(positions).toContain(0);
   });
+
+  it("drives renderer session from mock source tracker events", async () => {
+    const script: CueScript = {
+      version: 1,
+      config: {
+        advanceMargin: 0.01,
+        minDwellMs: 0,
+        stickiness: 0,
+      },
+      cues: [
+        { id: "intro", text: "Intro headline", keywords: ["intro", "headline"] },
+        { id: "ask", text: "Budget ask", keywords: ["budget", "ask"] },
+      ],
+    };
+    const bridge = createCuelyBridge({ script });
+    const session = new PrompterSession(script);
+
+    const offTracker = bridge.onTrackerEvent((event) => {
+      session.consumeTrackerEvent(event);
+    });
+    const offStatus = bridge.onSourceStatus((status) => {
+      session.setSourceStatus(status);
+    });
+
+    await bridge.selectSource("mock", {
+      chunks: [
+        { text: "budget ask", final: true, at: 0 },
+        { text: "budget ask", final: true, at: 1 },
+      ],
+      timeScale: 100,
+    });
+
+    await waitFor(20);
+
+    offTracker();
+    offStatus();
+
+    expect(session.getViewModel().currentCue.id).toBe("ask");
+    expect(session.getViewModel().sourceStatus.state).toBe("listening");
+  });
 });
+
+async function waitFor(ms: number): Promise<void> {
+  await new Promise<void>((resolvePromise) => {
+    setTimeout(resolvePromise, ms);
+  });
+}

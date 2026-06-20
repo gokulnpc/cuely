@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type ReactElement } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { MockTranscriptSource } from "../sources/mock-source";
 import { createDemoScript, createDemoTranscript } from "../shared/demo-script";
 import type { CuelyBridge, HotkeyAction } from "../shared/bridge";
@@ -132,8 +132,12 @@ function LocalDemoApp(): ReactElement {
 function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
   const [session, setSession] = useState<PrompterSession>(() => new PrompterSession(createDemoScript()));
   const [model, setModel] = useState<PrompterViewModel>(session.getViewModel());
+  const [scriptPath, setScriptPath] = useState("demo-script.md");
+  const [scriptStatus, setScriptStatus] = useState<string | null>(null);
+  const sessionRef = useRef(session);
 
   useEffect(() => {
+    sessionRef.current = session;
     const unsubscribe = session.onChange(setModel);
     return () => unsubscribe();
   }, [session]);
@@ -150,18 +154,19 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
         return;
       }
 
-      const bridgeSession = new PrompterSession(script);
-      setSession(bridgeSession);
+      const initialSession = new PrompterSession(script);
+      sessionRef.current = initialSession;
+      setSession(initialSession);
 
       stopTrackerEvents = bridge.onTrackerEvent((event) => {
-        bridgeSession.consumeTrackerEvent(event);
+        sessionRef.current.consumeTrackerEvent(event);
       });
       stopSourceStatus = bridge.onSourceStatus((status) => {
-        bridgeSession.setSourceStatus(status);
+        sessionRef.current.setSourceStatus(status);
       });
       stopHotkeys = bridge.onHotkey((action) => {
         if (action === "toggle-following" || action === "toggle-visible") {
-          bridgeSession.applyHotkey(action);
+          sessionRef.current.applyHotkey(action);
         }
       });
 
@@ -189,10 +194,21 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
   }
 
   function trigger(action: HotkeyAction): void {
-    if (action === "toggle-following" || action === "toggle-visible") {
-      session.applyHotkey(action);
-    }
     void bridge.triggerHotkey(action);
+  }
+
+  async function loadScriptFromPath(): Promise<void> {
+    try {
+      const nextScript = await bridge.loadScript(scriptPath.trim());
+      const nextSession = new PrompterSession(nextScript);
+      sessionRef.current = nextSession;
+      setSession(nextSession);
+      setScriptStatus(`Loaded script: ${nextScript.title ?? scriptPath.trim()}`);
+      await bridge.selectSource("mock", { chunks: createDemoTranscript() });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load script.";
+      setScriptStatus(message);
+    }
   }
 
   return (
@@ -208,6 +224,19 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
         onNext={() => trigger("next")}
         onToggleFollowing={() => trigger("toggle-following")}
       />
+      <div style={{ padding: "0 0.75rem 0.75rem 0.75rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <input
+          type="text"
+          value={scriptPath}
+          onChange={(event) => setScriptPath(event.target.value)}
+          placeholder="Path to cue script (.md or .json)"
+          style={{ minWidth: "320px" }}
+        />
+        <button type="button" onClick={() => void loadScriptFromPath()}>
+          Load Script
+        </button>
+        {scriptStatus ? <span>{scriptStatus}</span> : null}
+      </div>
       <ThemeContainer model={model} />
     </>
   );

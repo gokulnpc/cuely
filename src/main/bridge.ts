@@ -78,7 +78,8 @@ export function createCuelyBridge(options: BridgeOptions): CuelyBridge {
     async selectSource(kind: "mock" | "cloud" | "native", opts?: Record<string, unknown>): Promise<void> {
       if (kind === "mock") {
         const chunks = chunksFromUnknown(opts?.chunks);
-        await trackerService.selectSource(new MockTranscriptSource(chunks));
+        const timeScale = typeof opts?.timeScale === "number" ? opts.timeScale : undefined;
+        await trackerService.selectSource(new MockTranscriptSource(chunks, { timeScale }));
         return;
       }
       if (kind === "cloud") {
