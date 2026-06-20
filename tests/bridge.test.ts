@@ -193,6 +193,25 @@ title: Demo Script
     }
   });
 
+  it("uses provider-specific default api key env for assemblyai", async () => {
+    const previousAssembly = process.env.ASSEMBLYAI_API_KEY;
+    delete process.env.ASSEMBLYAI_API_KEY;
+    try {
+      const bridge = createCuelyBridge({ script: createDemoScript() });
+      await expect(
+        bridge.selectSource("cloud", {
+          provider: "assemblyai",
+        }),
+      ).rejects.toThrow(/ASSEMBLYAI_API_KEY/);
+    } finally {
+      if (previousAssembly !== undefined) {
+        process.env.ASSEMBLYAI_API_KEY = previousAssembly;
+      } else {
+        delete process.env.ASSEMBLYAI_API_KEY;
+      }
+    }
+  });
+
   it("keeps active tracker state when script load fails", async () => {
     const bridge = createCuelyBridge({ script: createDemoScript() });
     const positions: number[] = [];

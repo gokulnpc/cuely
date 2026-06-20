@@ -233,7 +233,9 @@ export type HotkeyAction =
 
 For `selectSource('cloud', opts)`, implementations may accept `CloudSourceOptions`-compatible
 fields in `opts` (e.g. `provider`, `apiKeyEnv`, `locale`, `interim`) and map them to the
-active cloud adapter configuration.
+active cloud adapter configuration. If `apiKeyEnv` is omitted, adapters may use
+provider-specific defaults (e.g. `DEEPGRAM_API_KEY` for Deepgram, `ASSEMBLYAI_API_KEY`
+for AssemblyAI).
 
 **Invariant:** the tracker runs in the main process (or a worker) so it survives renderer
 reloads; the renderer is a thin view subscribing to `onTrackerEvent`.

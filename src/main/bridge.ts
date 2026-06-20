@@ -97,7 +97,7 @@ export function createCuelyBridge(options: BridgeOptions): CuelyBridge {
         const apiKeyEnv =
           typeof opts?.apiKeyEnv === "string" && opts.apiKeyEnv.trim().length > 0
             ? opts.apiKeyEnv
-            : "DEEPGRAM_API_KEY";
+            : defaultApiKeyEnvForProvider(provider);
         const cloudOptions: CloudSourceOptions = {
           provider,
           apiKeyEnv,
@@ -181,4 +181,8 @@ function defaultScriptPresets(): ScriptPreset[] {
     { label: "Q3 Review (Markdown)", path: "scripts/q3-review.md" },
     { label: "Q3 Review (JSON)", path: "scripts/q3-review.json" },
   ];
+}
+
+function defaultApiKeyEnvForProvider(provider: CloudSourceOptions["provider"]): string {
+  return provider === "assemblyai" ? "ASSEMBLYAI_API_KEY" : "DEEPGRAM_API_KEY";
 }
