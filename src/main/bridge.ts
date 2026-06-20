@@ -17,18 +17,22 @@ export function createCuelyBridge(options: BridgeOptions): CuelyBridge {
 
   return {
     async setContentProtection(_on: boolean): Promise<void> {
+      void _on;
       return;
     },
     async setAlwaysOnTop(_on: boolean): Promise<void> {
+      void _on;
       return;
     },
     async listDisplays(): Promise<DisplayInfo[]> {
       return [{ id: 1, label: "Primary display", primary: true, bounds: { x: 0, y: 0, width: 1920, height: 1080 } }];
     },
     async moveToDisplay(_displayId: number): Promise<void> {
+      void _displayId;
       return;
     },
     async setMirror(_on: boolean): Promise<void> {
+      void _on;
       return;
     },
     async loadScript(): Promise<CueScript> {
