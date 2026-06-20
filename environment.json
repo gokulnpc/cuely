@@ -1,0 +1,9 @@
+{
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "checks",
+      "command": "npm run typecheck && npm run lint && npm run test"
+    }
+  ]
+}
