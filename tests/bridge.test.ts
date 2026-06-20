@@ -173,6 +173,26 @@ title: Demo Script
     offStatus();
   });
 
+  it("uses cloud selectSource options for provider credentials", async () => {
+    const previousCustom = process.env.CUSTOM_CLOUD_KEY;
+    delete process.env.CUSTOM_CLOUD_KEY;
+    try {
+      const bridge = createCuelyBridge({ script: createDemoScript() });
+      await expect(
+        bridge.selectSource("cloud", {
+          provider: "assemblyai",
+          apiKeyEnv: "CUSTOM_CLOUD_KEY",
+        }),
+      ).rejects.toThrow(/CUSTOM_CLOUD_KEY/);
+    } finally {
+      if (previousCustom !== undefined) {
+        process.env.CUSTOM_CLOUD_KEY = previousCustom;
+      } else {
+        delete process.env.CUSTOM_CLOUD_KEY;
+      }
+    }
+  });
+
   it("keeps active tracker state when script load fails", async () => {
     const bridge = createCuelyBridge({ script: createDemoScript() });
     const positions: number[] = [];

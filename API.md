@@ -231,6 +231,10 @@ export type HotkeyAction =
   | 'next' | 'prev' | 'top' | 'toggle-following' | 'toggle-visible';
 ```
 
+For `selectSource('cloud', opts)`, implementations may accept `CloudSourceOptions`-compatible
+fields in `opts` (e.g. `provider`, `apiKeyEnv`, `locale`, `interim`) and map them to the
+active cloud adapter configuration.
+
 **Invariant:** the tracker runs in the main process (or a worker) so it survives renderer
 reloads; the renderer is a thin view subscribing to `onTrackerEvent`.
 

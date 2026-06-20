@@ -51,6 +51,37 @@ class FailingTranscriptSource implements TranscriptSource {
   }
 }
 
+class HealthyTranscriptSource implements TranscriptSource {
+  public readonly kind = "mock" as const;
+
+  private readonly statusListeners = new Set<(status: SourceStatus) => void>();
+
+  async start(): Promise<void> {
+    this.emitStatus({ state: "listening" });
+  }
+
+  async stop(): Promise<void> {
+    this.emitStatus({ state: "idle" });
+  }
+
+  onChunk(_listener: TranscriptListener): () => void {
+    void _listener;
+    return () => undefined;
+  }
+
+  onStatus(listener: (s: SourceStatus) => void): () => void {
+    this.statusListeners.add(listener);
+    listener({ state: "idle" });
+    return () => this.statusListeners.delete(listener);
+  }
+
+  private emitStatus(status: SourceStatus): void {
+    for (const listener of this.statusListeners) {
+      listener(status);
+    }
+  }
+}
+
 function createScript(): CueScript {
   return {
     version: 1,
@@ -73,6 +104,21 @@ describe("TrackerService", () => {
 
     expect(service.getSnapshot().following).toBe(false);
     expect(statuses.some((status) => status.state === "error")).toBe(true);
+
+    offStatus();
+  });
+
+  it("can recover to a healthy source after startup failure", async () => {
+    const service = new TrackerService(createScript());
+    const statuses: SourceStatus[] = [];
+    const offStatus = service.onSourceStatus((status) => statuses.push(status));
+
+    await expect(service.selectSource(new FailingTranscriptSource())).rejects.toThrow(
+      /provider unavailable/i,
+    );
+    await expect(service.selectSource(new HealthyTranscriptSource())).resolves.toBeUndefined();
+
+    expect(statuses.some((status) => status.state === "listening")).toBe(true);
 
     offStatus();
   });

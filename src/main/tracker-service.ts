@@ -51,15 +51,25 @@ export class TrackerService {
       this.tracker.pushTranscript(chunk);
     });
     this.detachSourceStatus = source.onStatus((status) => {
-      this.sourceStatus = status;
-      if (status.state === "error") {
-        this.following = false;
-      }
-      for (const listener of this.sourceStatusListeners) {
-        listener(status);
-      }
+      this.publishStatus(status);
     });
-    await source.start();
+    try {
+      await source.start();
+    } catch (error) {
+      this.following = false;
+      try {
+        await source.stop();
+      } catch {
+        // Ignore source-stop failures while handling startup errors.
+      }
+      this.clearCurrentSourceBindings();
+      if (this.sourceStatus.state !== "error") {
+        const message =
+          error instanceof Error ? error.message : "transcription source failed to start";
+        this.publishStatus({ state: "error", message, recoverable: false });
+      }
+      throw error;
+    }
   }
 
   async stopSource(): Promise<void> {
@@ -113,14 +123,25 @@ export class TrackerService {
     if (this.currentSource !== null) {
       await this.currentSource.stop();
     }
+    this.clearCurrentSourceBindings();
+    this.publishStatus({ state: "idle" });
+  }
+
+  private clearCurrentSourceBindings(): void {
     this.detachSourceChunk?.();
     this.detachSourceStatus?.();
     this.currentSource = null;
     this.detachSourceChunk = null;
     this.detachSourceStatus = null;
-    this.sourceStatus = { state: "idle" };
+  }
+
+  private publishStatus(status: SourceStatus): void {
+    this.sourceStatus = status;
+    if (status.state === "error") {
+      this.following = false;
+    }
     for (const listener of this.sourceStatusListeners) {
-      listener(this.sourceStatus);
+      listener(status);
     }
   }
 }

@@ -2,7 +2,7 @@ import type { CueScript } from "../core/cue-model";
 import { compileCueScriptFromMarkdown } from "../core/cue-compiler";
 import type { SourceStatus, TranscriptChunk } from "../core/transcript-source";
 import type { TrackerEvent } from "../core/tracker";
-import { CloudStreamingSource } from "../sources/cloud-source";
+import { CloudStreamingSource, type CloudSourceOptions } from "../sources/cloud-source";
 import { MockTranscriptSource } from "../sources/mock-source";
 import { NativeTranscriptSource } from "../sources/native-source";
 import type { CuelyBridge, DisplayInfo, HotkeyAction, ScriptPreset } from "../shared/bridge";
@@ -90,8 +90,22 @@ export function createCuelyBridge(options: BridgeOptions): CuelyBridge {
         return;
       }
       if (kind === "cloud") {
+        const provider =
+          opts?.provider === "assemblyai" || opts?.provider === "deepgram"
+            ? opts.provider
+            : "deepgram";
+        const apiKeyEnv =
+          typeof opts?.apiKeyEnv === "string" && opts.apiKeyEnv.trim().length > 0
+            ? opts.apiKeyEnv
+            : "DEEPGRAM_API_KEY";
+        const cloudOptions: CloudSourceOptions = {
+          provider,
+          apiKeyEnv,
+          ...(typeof opts?.locale === "string" ? { locale: opts.locale } : {}),
+          ...(typeof opts?.interim === "boolean" ? { interim: opts.interim } : {}),
+        };
         await trackerService.selectSource(
-          new CloudStreamingSource({ provider: "deepgram", apiKeyEnv: "DEEPGRAM_API_KEY" }),
+          new CloudStreamingSource(cloudOptions),
         );
         return;
       }
