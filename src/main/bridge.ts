@@ -1,19 +1,47 @@
 import type { CueScript } from "../core/cue-model";
+import { compileCueScriptFromMarkdown } from "../core/cue-compiler";
+import type { SourceStatus, TranscriptChunk } from "../core/transcript-source";
+import type { TrackerEvent } from "../core/tracker";
 import { CloudStreamingSource } from "../sources/cloud-source";
 import { MockTranscriptSource } from "../sources/mock-source";
 import { NativeTranscriptSource } from "../sources/native-source";
 import type { CuelyBridge, DisplayInfo, HotkeyAction } from "../shared/bridge";
-import type { TrackerEvent } from "../core/tracker";
-import type { SourceStatus } from "../core/transcript-source";
 import { TrackerService } from "./tracker-service";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 export interface BridgeOptions {
   script: CueScript;
+  cwd?: string;
 }
 
 export function createCuelyBridge(options: BridgeOptions): CuelyBridge {
-  const trackerService = new TrackerService(options.script, options.script.config);
+  let activeScript = options.script;
+  const cwd = options.cwd ?? process.cwd();
   const hotkeyListeners = new Set<(action: HotkeyAction) => void>();
+  const trackerListeners = new Set<(event: TrackerEvent) => void>();
+  const sourceStatusListeners = new Set<(status: SourceStatus) => void>();
+  let latestSourceStatus: SourceStatus = { state: "idle" };
+  let trackerService = new TrackerService(activeScript, activeScript.config);
+  let unsubscribeTrackerRelay: (() => void) | null = null;
+  let unsubscribeSourceRelay: (() => void) | null = null;
+
+  const attachRelay = (service: TrackerService): void => {
+    unsubscribeTrackerRelay?.();
+    unsubscribeSourceRelay?.();
+    unsubscribeTrackerRelay = service.onTrackerEvent((event) => {
+      for (const listener of trackerListeners) {
+        listener(event);
+      }
+    });
+    unsubscribeSourceRelay = service.onSourceStatus((status) => {
+      latestSourceStatus = status;
+      for (const listener of sourceStatusListeners) {
+        listener(status);
+      }
+    });
+  };
+  attachRelay(trackerService);
 
   return {
     async setContentProtection(_on: boolean): Promise<void> {
@@ -35,13 +63,22 @@ export function createCuelyBridge(options: BridgeOptions): CuelyBridge {
       void _on;
       return;
     },
-    async loadScript(): Promise<CueScript> {
-      return options.script;
+    async loadScript(path?: string): Promise<CueScript> {
+      if (!path) {
+        return activeScript;
+      }
+
+      const nextScript = await loadCueScript(path, cwd);
+      await trackerService.stopSource();
+      trackerService = new TrackerService(nextScript, nextScript.config);
+      activeScript = nextScript;
+      attachRelay(trackerService);
+      return nextScript;
     },
     async selectSource(kind: "mock" | "cloud" | "native", opts?: Record<string, unknown>): Promise<void> {
       if (kind === "mock") {
-        const chunks = Array.isArray(opts?.chunks) ? opts.chunks : [];
-        await trackerService.selectSource(MockTranscriptSourceFromUnknown(chunks));
+        const chunks = chunksFromUnknown(opts?.chunks);
+        await trackerService.selectSource(new MockTranscriptSource(chunks));
         return;
       }
       if (kind === "cloud") {
@@ -52,11 +89,18 @@ export function createCuelyBridge(options: BridgeOptions): CuelyBridge {
       }
       await trackerService.selectSource(new NativeTranscriptSource());
     },
+    async triggerHotkey(action: HotkeyAction): Promise<void> {
+      trackerService.applyHotkey(action);
+      emitHotkey(hotkeyListeners, action);
+    },
     onSourceStatus(cb: (s: SourceStatus) => void): () => void {
-      return trackerService.onSourceStatus(cb);
+      sourceStatusListeners.add(cb);
+      cb(latestSourceStatus);
+      return () => sourceStatusListeners.delete(cb);
     },
     onTrackerEvent(cb: (e: TrackerEvent) => void): () => void {
-      return trackerService.onTrackerEvent(cb);
+      trackerListeners.add(cb);
+      return () => trackerListeners.delete(cb);
     },
     onHotkey(cb: (action: HotkeyAction) => void): () => void {
       hotkeyListeners.add(cb);
@@ -71,8 +115,11 @@ export function emitHotkey(hotkeyListeners: Set<(action: HotkeyAction) => void>,
   }
 }
 
-function MockTranscriptSourceFromUnknown(chunks: unknown[]): MockTranscriptSource {
-  const safeChunks = chunks
+function chunksFromUnknown(chunks: unknown): TranscriptChunk[] {
+  if (!Array.isArray(chunks)) {
+    return [];
+  }
+  return chunks
     .filter((value): value is { text: string; final: boolean; at: number; confidence?: number } => {
       if (typeof value !== "object" || value === null) {
         return false;
@@ -81,5 +128,28 @@ function MockTranscriptSourceFromUnknown(chunks: unknown[]): MockTranscriptSourc
       return typeof candidate.text === "string" && typeof candidate.final === "boolean" && typeof candidate.at === "number";
     })
     .map((chunk) => ({ ...chunk }));
-  return new MockTranscriptSource(safeChunks);
+}
+
+async function loadCueScript(path: string, cwd: string): Promise<CueScript> {
+  const absolutePath = path.startsWith("/") ? path : resolve(cwd, path);
+  const content = await readFile(absolutePath, "utf8");
+  const isMarkdown = /\.md(?:own)?$/iu.test(absolutePath);
+  if (isMarkdown) {
+    return compileCueScriptFromMarkdown(content);
+  }
+  return validateCueScriptJson(JSON.parse(content));
+}
+
+function validateCueScriptJson(raw: unknown): CueScript {
+  if (typeof raw !== "object" || raw === null) {
+    throw new Error("Cue script JSON must be an object.");
+  }
+  const record = raw as Record<string, unknown>;
+  if (record.version !== 1) {
+    throw new Error("Cue script JSON must have version = 1.");
+  }
+  if (!Array.isArray(record.cues) || record.cues.length === 0) {
+    throw new Error("Cue script JSON must include a non-empty cues array.");
+  }
+  return raw as CueScript;
 }

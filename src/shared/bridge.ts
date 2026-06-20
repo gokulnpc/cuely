@@ -31,6 +31,7 @@ export interface CuelyBridge {
   setMirror(on: boolean): Promise<void>;
   loadScript(path?: string): Promise<CueScript>;
   selectSource(kind: "mock" | "cloud" | "native", opts?: Record<string, unknown>): Promise<void>;
+  triggerHotkey(action: HotkeyAction): Promise<void>;
   onSourceStatus(cb: (s: SourceStatus) => void): () => void;
   onTrackerEvent(cb: (e: TrackerEvent) => void): () => void;
   onHotkey(cb: (action: HotkeyAction) => void): () => void;

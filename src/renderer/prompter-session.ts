@@ -113,6 +113,10 @@ export class PrompterSession {
     this.emit();
   }
 
+  consumeTrackerEvent(event: TrackerEvent): void {
+    this.applyTrackerEvent(event);
+  }
+
   getViewModel(): PrompterViewModel {
     const currentCue = this.script.cues[this.state.position.index] ?? this.firstCue;
     const nextCues = this.script.cues.slice(this.state.position.index + 1, this.state.position.index + 3);
