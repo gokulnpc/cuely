@@ -2,6 +2,18 @@ import type { TranscriptChunk } from "../core/transcript-source";
 import type { CuelyBridge } from "../shared/bridge";
 import { PrompterSession } from "./prompter-session";
 
+export interface CloudSourceSelectionOptions {
+  provider?: "deepgram" | "assemblyai";
+  apiKeyEnv?: string;
+  locale?: string;
+  interim?: boolean;
+}
+
+export type SourceSelection =
+  | { kind: "mock" }
+  | { kind: "cloud"; options?: CloudSourceSelectionOptions }
+  | { kind: "native" };
+
 export interface ScriptLoadResult {
   session: PrompterSession;
   status: string;
@@ -12,23 +24,32 @@ export interface ScriptLoadResult {
 export async function loadScriptIntoSession(params: {
   bridge: CuelyBridge;
   path: string;
-  sourceKind: "mock" | "cloud" | "native";
+  sourceSelection: SourceSelection;
   currentSession: PrompterSession;
   demoChunks: TranscriptChunk[];
 }): Promise<ScriptLoadResult> {
-  const { bridge, path, sourceKind, currentSession, demoChunks } = params;
+  const { bridge, path, sourceSelection, currentSession, demoChunks } = params;
   try {
     const nextScript = await bridge.loadScript(path);
     const nextSession = new PrompterSession(nextScript);
     try {
-      if (sourceKind === "mock") {
+      if (sourceSelection.kind === "mock") {
         await bridge.selectSource("mock", { chunks: demoChunks });
+      } else if (sourceSelection.kind === "cloud") {
+        const options = sourceSelection.options ?? {};
+        const cloudOpts = {
+          ...(options.provider ? { provider: options.provider } : {}),
+          ...(options.apiKeyEnv ? { apiKeyEnv: options.apiKeyEnv } : {}),
+          ...(options.locale ? { locale: options.locale } : {}),
+          ...(typeof options.interim === "boolean" ? { interim: options.interim } : {}),
+        };
+        await bridge.selectSource("cloud", cloudOpts);
       } else {
-        await bridge.selectSource(sourceKind);
+        await bridge.selectSource("native");
       }
       return {
         session: nextSession,
-        status: `Loaded script: ${nextScript.title ?? path} (source: ${sourceKind})`,
+        status: `Loaded script: ${nextScript.title ?? path} (source: ${sourceSelection.kind})`,
         success: true,
         sourceReady: true,
       };

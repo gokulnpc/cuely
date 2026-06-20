@@ -4,7 +4,11 @@ import { createDemoScript, createDemoTranscript } from "../shared/demo-script";
 import type { CuelyBridge, HotkeyAction, ScriptPreset } from "../shared/bridge";
 import { getCuelyBridge } from "./bridge-client";
 import { PrompterSession, type PrompterViewModel } from "./prompter-session";
-import { loadScriptIntoSession } from "./script-loader";
+import {
+  loadScriptIntoSession,
+  type CloudSourceSelectionOptions,
+  type SourceSelection,
+} from "./script-loader";
 
 function ThemeContainer({ model }: { model: PrompterViewModel }): ReactElement {
   if (!model.visible) {
@@ -142,6 +146,10 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
   const [scriptPresets, setScriptPresets] = useState<ScriptPreset[]>([]);
   const [scriptStatus, setScriptStatus] = useState<string | null>(null);
   const [sourceKind, setSourceKind] = useState<"mock" | "cloud" | "native">("mock");
+  const [cloudProvider, setCloudProvider] = useState<"deepgram" | "assemblyai">("deepgram");
+  const [cloudApiKeyEnv, setCloudApiKeyEnv] = useState("DEEPGRAM_API_KEY");
+  const [cloudLocale, setCloudLocale] = useState("en-US");
+  const [cloudInterim, setCloudInterim] = useState(true);
   const [sourceActionStatus, setSourceActionStatus] = useState<string | null>(null);
   const sessionRef = useRef(session);
 
@@ -233,10 +241,16 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
   }
 
   async function loadScriptFromPath(): Promise<void> {
+    const sourceSelection = buildSourceSelection(sourceKind, {
+      provider: cloudProvider,
+      apiKeyEnv: cloudApiKeyEnv.trim(),
+      locale: cloudLocale.trim(),
+      interim: cloudInterim,
+    });
     const result = await loadScriptIntoSession({
       bridge,
       path: scriptPath.trim(),
-      sourceKind,
+      sourceSelection,
       currentSession: sessionRef.current,
       demoChunks: createDemoTranscript(),
     });
@@ -255,6 +269,19 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
     try {
       if (kind === "mock") {
         await bridge.selectSource("mock", { chunks: createDemoTranscript() });
+      } else if (kind === "cloud") {
+        const sourceSelection = buildSourceSelection("cloud", {
+          provider: cloudProvider,
+          apiKeyEnv: cloudApiKeyEnv.trim(),
+          locale: cloudLocale.trim(),
+          interim: cloudInterim,
+        });
+        if (sourceSelection.kind === "cloud") {
+          const cloudOpts: Record<string, unknown> = {
+            ...(sourceSelection.options ?? {}),
+          };
+          await bridge.selectSource("cloud", cloudOpts);
+        }
       } else {
         await bridge.selectSource(kind);
       }
@@ -316,11 +343,84 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
         <button type="button" onClick={() => void selectSourceKind(sourceKind)}>
           Apply Source
         </button>
+        {sourceKind === "cloud" ? (
+          <>
+            <label>
+              Provider
+              <select
+                value={cloudProvider}
+                onChange={(event) => {
+                  const nextProvider = event.target.value as "deepgram" | "assemblyai";
+                  setCloudProvider(nextProvider);
+                  const defaultEnv =
+                    nextProvider === "assemblyai" ? "ASSEMBLYAI_API_KEY" : "DEEPGRAM_API_KEY";
+                  if (
+                    cloudApiKeyEnv === "DEEPGRAM_API_KEY" ||
+                    cloudApiKeyEnv === "ASSEMBLYAI_API_KEY"
+                  ) {
+                    setCloudApiKeyEnv(defaultEnv);
+                  }
+                }}
+              >
+                <option value="deepgram">deepgram</option>
+                <option value="assemblyai">assemblyai</option>
+              </select>
+            </label>
+            <label>
+              API env
+              <input
+                type="text"
+                value={cloudApiKeyEnv}
+                onChange={(event) => setCloudApiKeyEnv(event.target.value)}
+                style={{ minWidth: "180px" }}
+              />
+            </label>
+            <label>
+              Locale
+              <input
+                type="text"
+                value={cloudLocale}
+                onChange={(event) => setCloudLocale(event.target.value)}
+                style={{ width: "90px" }}
+              />
+            </label>
+            <label>
+              Interim
+              <input
+                type="checkbox"
+                checked={cloudInterim}
+                onChange={(event) => setCloudInterim(event.target.checked)}
+              />
+            </label>
+          </>
+        ) : null}
         {sourceActionStatus ? <span>{sourceActionStatus}</span> : null}
       </div>
       <ThemeContainer model={model} />
     </>
   );
+}
+
+function buildSourceSelection(
+  kind: "mock" | "cloud" | "native",
+  cloudOptions: CloudSourceSelectionOptions,
+): SourceSelection {
+  if (kind === "mock") {
+    return { kind: "mock" };
+  }
+  if (kind === "native") {
+    return { kind: "native" };
+  }
+
+  return {
+    kind: "cloud",
+    options: {
+      ...(cloudOptions.provider ? { provider: cloudOptions.provider } : {}),
+      ...(cloudOptions.apiKeyEnv ? { apiKeyEnv: cloudOptions.apiKeyEnv } : {}),
+      ...(cloudOptions.locale ? { locale: cloudOptions.locale } : {}),
+      ...(typeof cloudOptions.interim === "boolean" ? { interim: cloudOptions.interim } : {}),
+    },
+  };
 }
 
 interface ControlsProps {

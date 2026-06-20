@@ -52,6 +52,8 @@ function createBridgeStub(overrides: Partial<CuelyBridge> = {}): CuelyBridge {
 describe("loadScriptIntoSession", () => {
   it("returns a new session and success status when loading works", async () => {
     let selectSourceCalls = 0;
+    let selectedKind: "mock" | "cloud" | "native" | null = null;
+    let selectedOpts: Record<string, unknown> | undefined;
     const bridge = createBridgeStub({
       async loadScript(): Promise<CueScript> {
         return {
@@ -60,8 +62,10 @@ describe("loadScriptIntoSession", () => {
           cues: [{ id: "loaded", text: "Loaded cue", keywords: ["loaded"] }],
         };
       },
-      async selectSource(): Promise<void> {
+      async selectSource(kind: "mock" | "cloud" | "native", opts?: Record<string, unknown>): Promise<void> {
         selectSourceCalls += 1;
+        selectedKind = kind;
+        selectedOpts = opts;
       },
     });
     const previousSession = new PrompterSession(createDemoScript());
@@ -69,7 +73,7 @@ describe("loadScriptIntoSession", () => {
     const result = await loadScriptIntoSession({
       bridge,
       path: "scripts/loaded.md",
-      sourceKind: "mock",
+      sourceSelection: { kind: "mock" },
       currentSession: previousSession,
       demoChunks: createDemoTranscript(),
     });
@@ -79,6 +83,8 @@ describe("loadScriptIntoSession", () => {
     expect(result.session).not.toBe(previousSession);
     expect(result.session.getViewModel().title).toBe("Loaded Script");
     expect(selectSourceCalls).toBe(1);
+    expect(selectedKind).toBe("mock");
+    expect(Array.isArray(selectedOpts?.chunks)).toBe(true);
   });
 
   it("keeps loaded session when source start fails after successful load", async () => {
@@ -101,7 +107,7 @@ describe("loadScriptIntoSession", () => {
     const result = await loadScriptIntoSession({
       bridge,
       path: "scripts/loaded.md",
-      sourceKind: "mock",
+      sourceSelection: { kind: "mock" },
       currentSession: previousSession,
       demoChunks: createDemoTranscript(),
     });
@@ -133,7 +139,15 @@ describe("loadScriptIntoSession", () => {
     const result = await loadScriptIntoSession({
       bridge,
       path: "scripts/loaded.md",
-      sourceKind: "cloud",
+      sourceSelection: {
+        kind: "cloud",
+        options: {
+          provider: "assemblyai",
+          apiKeyEnv: "ASSEMBLYAI_API_KEY",
+          locale: "en-US",
+          interim: false,
+        },
+      },
       currentSession: previousSession,
       demoChunks: createDemoTranscript(),
     });
@@ -158,7 +172,7 @@ describe("loadScriptIntoSession", () => {
     const result = await loadScriptIntoSession({
       bridge,
       path: "scripts/missing.md",
-      sourceKind: "mock",
+      sourceSelection: { kind: "mock" },
       currentSession: previousSession,
       demoChunks: createDemoTranscript(),
     });
