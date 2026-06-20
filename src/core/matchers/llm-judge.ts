@@ -10,5 +10,8 @@ export function scoreCueWithLlmJudge(
   _chunks: TranscriptChunk[],
   _options: LlmJudgeOptions,
 ): number {
+  void _cue;
+  void _chunks;
+  void _options;
   return 0;
 }

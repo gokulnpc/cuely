@@ -38,8 +38,8 @@ describe("CueTracker scoring contract", () => {
 
     tracker.pushTranscript({ text: "enterprise renewals are improving", final: true, at: 1_000 });
 
-    expect(latestScores.enterprise).toBeGreaterThan(latestScores.headline);
-    expect(latestScores.enterprise).toBeGreaterThan(latestScores.ask);
+    expect(latestScores.enterprise ?? 0).toBeGreaterThan(latestScores.headline ?? 0);
+    expect(latestScores.enterprise ?? 0).toBeGreaterThan(latestScores.ask ?? 0);
   });
 
   it("2) recent chunks contribute more than older chunks", () => {
@@ -59,7 +59,7 @@ describe("CueTracker scoring contract", () => {
     tracker.pushTranscript({ text: "revenue", final: true, at: 1_000 });
     tracker.pushTranscript({ text: "enterprise", final: true, at: 6_000 });
 
-    expect(latestScores.enterprise).toBeGreaterThan(latestScores.headline);
+    expect(latestScores.enterprise ?? 0).toBeGreaterThan(latestScores.headline ?? 0);
   });
 
   it("3) a move requires margin sustained for minDwellMs", () => {

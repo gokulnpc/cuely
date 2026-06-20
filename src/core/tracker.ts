@@ -66,14 +66,15 @@ export class CueTracker {
   private lastTimestamp = 0;
 
   constructor(script: CueScript, config: Partial<CueTrackerConfig> = {}) {
-    if (script.cues.length === 0) {
+    const firstCue = script.cues.at(0);
+    if (!firstCue) {
       throw new Error("CueTracker requires at least one cue.");
     }
 
     this.script = script;
     this.config = this.mergeConfig(config);
     this._position = {
-      cueId: script.cues[0].id,
+      cueId: firstCue.id,
       index: 0,
       confidence: 1,
       source: "voice",
@@ -98,6 +99,9 @@ export class CueTracker {
 
     const bounded = Math.min(this.script.cues.length - 1, Math.max(0, Math.trunc(index)));
     const cue = this.script.cues[bounded];
+    if (!cue) {
+      return;
+    }
     const coolOffMs = opts.coolOffMs ?? 4_000;
 
     this.manualCoolOffUntil = Math.max(this.lastTimestamp, 0) + Math.max(coolOffMs, 0);
@@ -141,6 +145,9 @@ export class CueTracker {
           normalizedChunk.at - this.pendingRivalSince >= this.config.minDwellMs
         ) {
           const cue = this.script.cues[scoreState.bestIndex];
+          if (!cue) {
+            return;
+          }
           this._position = {
             cueId: cue.id,
             index: scoreState.bestIndex,
@@ -194,6 +201,9 @@ export class CueTracker {
 
     for (let i = 0; i < this.script.cues.length; i += 1) {
       const cue = this.script.cues[i];
+      if (!cue) {
+        continue;
+      }
       let score = 0;
 
       if (searchable.has(i)) {
@@ -248,17 +258,27 @@ export class CueTracker {
   }
 
   private normalizeChunk(chunk: TranscriptChunk): TranscriptChunk {
-    return {
+    const normalized: TranscriptChunk = {
       text: typeof chunk?.text === "string" ? chunk.text : "",
       final: Boolean(chunk?.final),
       at: Number.isFinite(chunk?.at) ? chunk.at : this.lastTimestamp,
-      confidence: Number.isFinite(chunk?.confidence) ? chunk.confidence : undefined,
     };
+
+    const confidence = chunk?.confidence;
+    if (typeof confidence === "number" && Number.isFinite(confidence)) {
+      normalized.confidence = confidence;
+    }
+
+    return normalized;
   }
 
   private pruneWindow(now: number): void {
     const threshold = now - this.config.windowMs;
-    while (this.transcriptWindow.length > 0 && this.transcriptWindow[0].at < threshold) {
+    while (this.transcriptWindow.length > 0) {
+      const oldest = this.transcriptWindow[0];
+      if (!oldest || oldest.at >= threshold) {
+        break;
+      }
       this.transcriptWindow.shift();
     }
   }

@@ -7,8 +7,8 @@ import type {
 
 export interface MockTranscriptSourceOptions {
   now?: () => number;
-  setTimeoutFn?: (cb: () => void, delayMs: number) => ReturnType<typeof setTimeout>;
-  clearTimeoutFn?: (id: ReturnType<typeof setTimeout>) => void;
+  setTimeoutFn?: (cb: () => void, delayMs: number) => unknown;
+  clearTimeoutFn?: (id: unknown) => void;
   timeScale?: number;
 }
 
@@ -21,11 +21,11 @@ export class MockTranscriptSource implements TranscriptSource {
   private readonly setTimeoutFn: (
     cb: () => void,
     delayMs: number,
-  ) => ReturnType<typeof setTimeout>;
-  private readonly clearTimeoutFn: (id: ReturnType<typeof setTimeout>) => void;
+  ) => unknown;
+  private readonly clearTimeoutFn: (id: unknown) => void;
   private readonly timeScale: number;
   private readonly script: TranscriptChunk[];
-  private readonly timerIds: Array<ReturnType<typeof setTimeout>> = [];
+  private readonly timerIds: unknown[] = [];
   private status: SourceStatus = { state: "idle" };
   private started = false;
 
@@ -33,7 +33,11 @@ export class MockTranscriptSource implements TranscriptSource {
     this.script = [...script].sort((a, b) => a.at - b.at);
     this.now = options.now ?? (() => Date.now());
     this.setTimeoutFn = options.setTimeoutFn ?? setTimeout;
-    this.clearTimeoutFn = options.clearTimeoutFn ?? clearTimeout;
+    this.clearTimeoutFn =
+      options.clearTimeoutFn ??
+      ((id) => {
+        clearTimeout(id as ReturnType<typeof setTimeout>);
+      });
     this.timeScale = options.timeScale && options.timeScale > 0 ? options.timeScale : 1;
   }
 
@@ -83,7 +87,11 @@ export class MockTranscriptSource implements TranscriptSource {
       return;
     }
 
-    const firstAt = this.script[0].at;
+    const firstChunk = this.script[0];
+    if (!firstChunk) {
+      return;
+    }
+    const firstAt = firstChunk.at;
     const startAt = this.now();
 
     for (const chunk of this.script) {

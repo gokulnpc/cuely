@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, type ReactElement } from "react";
 
-export function App(): JSX.Element {
+export function App(): ReactElement {
   const statusText = useMemo(() => "Cuely bootstrap ready", []);
   return (
     <main>
