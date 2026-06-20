@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import type { CueScript } from "../src/core/cue-model";
+import type { SourceStatus } from "../src/core/transcript-source";
 import { createCuelyBridge } from "../src/main/bridge";
 import { PrompterSession } from "../src/renderer/prompter-session";
 import { createDemoScript } from "../src/shared/demo-script";
@@ -113,6 +114,59 @@ title: Demo Script
 
     expect(session.getViewModel().currentCue.id).toBe("ask");
     expect(session.getViewModel().sourceStatus.state).toBe("listening");
+  });
+
+  it("publishes source status for mock and cloud failures", async () => {
+    const previousDeepgramKey = process.env.DEEPGRAM_API_KEY;
+    delete process.env.DEEPGRAM_API_KEY;
+
+    try {
+      const bridge = createCuelyBridge({ script: createDemoScript() });
+      const statuses: SourceStatus[] = [];
+      const offStatus = bridge.onSourceStatus((status) => statuses.push(status));
+
+      await bridge.selectSource("mock", {
+        chunks: [{ text: "headline", final: true, at: 0 }],
+        timeScale: 100,
+      });
+      await waitFor(20);
+
+      expect(statuses.some((status) => status.state === "listening")).toBe(true);
+
+      await expect(bridge.selectSource("cloud")).rejects.toThrow(/missing api key/i);
+      expect(
+        statuses.some(
+          (status) => status.state === "error" && status.recoverable === false,
+        ),
+      ).toBe(true);
+
+      offStatus();
+    } finally {
+      if (previousDeepgramKey !== undefined) {
+        process.env.DEEPGRAM_API_KEY = previousDeepgramKey;
+      } else {
+        delete process.env.DEEPGRAM_API_KEY;
+      }
+    }
+  });
+
+  it("native source reports recoverable status error", async () => {
+    const bridge = createCuelyBridge({ script: createDemoScript() });
+    const statuses: SourceStatus[] = [];
+    const offStatus = bridge.onSourceStatus((status) => statuses.push(status));
+
+    await bridge.selectSource("native");
+
+    expect(
+      statuses.some(
+        (status) =>
+          status.state === "error" &&
+          status.recoverable === true &&
+          /not available in cloud/i.test(status.message),
+      ),
+    ).toBe(true);
+
+    offStatus();
   });
 });
 

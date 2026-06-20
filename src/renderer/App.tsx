@@ -41,6 +41,11 @@ function ThemeContainer({ model }: { model: PrompterViewModel }): ReactElement {
         {model.unsure ? (
           <p style={{ color: "#f59e0b", margin: "0.4rem 0" }}>Unsure — holding current cue.</p>
         ) : null}
+        {model.sourceStatus.state === "error" ? (
+          <p style={{ color: "#ef4444", margin: "0.4rem 0" }}>
+            Source error: {model.sourceStatus.message}. Voice following is unavailable; use manual controls.
+          </p>
+        ) : null}
       </header>
       <section
         style={{
@@ -136,6 +141,8 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
   const [scriptPath, setScriptPath] = useState("scripts/q3-review.md");
   const [scriptPresets, setScriptPresets] = useState<ScriptPreset[]>([]);
   const [scriptStatus, setScriptStatus] = useState<string | null>(null);
+  const [sourceKind, setSourceKind] = useState<"mock" | "cloud" | "native">("mock");
+  const [sourceActionStatus, setSourceActionStatus] = useState<string | null>(null);
   const sessionRef = useRef(session);
 
   useEffect(() => {
@@ -183,7 +190,7 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
         }
       });
 
-      await bridge.selectSource("mock", { chunks: createDemoTranscript() });
+      await selectSourceKind("mock");
     })();
 
     return () => {
@@ -221,6 +228,21 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
     if (result.success) {
       sessionRef.current = result.session;
       setSession(result.session);
+    }
+  }
+
+  async function selectSourceKind(kind: "mock" | "cloud" | "native"): Promise<void> {
+    setSourceKind(kind);
+    try {
+      if (kind === "mock") {
+        await bridge.selectSource("mock", { chunks: createDemoTranscript() });
+      } else {
+        await bridge.selectSource(kind);
+      }
+      setSourceActionStatus(`Source selected: ${kind}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to switch source.";
+      setSourceActionStatus(message);
     }
   }
 
@@ -262,6 +284,20 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
           Load Script
         </button>
         {scriptStatus ? <span>{scriptStatus}</span> : null}
+      </div>
+      <div style={{ padding: "0 0.75rem 0.75rem 0.75rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <label>
+          Source
+          <select value={sourceKind} onChange={(event) => setSourceKind(event.target.value as "mock" | "cloud" | "native")}>
+            <option value="mock">mock</option>
+            <option value="cloud">cloud</option>
+            <option value="native">native</option>
+          </select>
+        </label>
+        <button type="button" onClick={() => void selectSourceKind(sourceKind)}>
+          Apply Source
+        </button>
+        {sourceActionStatus ? <span>{sourceActionStatus}</span> : null}
       </div>
       <ThemeContainer model={model} />
     </>
