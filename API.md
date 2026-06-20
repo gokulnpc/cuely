@@ -210,6 +210,7 @@ export interface CuelyBridge {
   setMirror(on: boolean): Promise<void>;                 // CSS transform in renderer; flag persisted
 
   // cue script
+  listScriptPresets(): Promise<ScriptPreset[]>;        // optional preset list for quick loading in renderer
   loadScript(path?: string): Promise<CueScript>;         // open dialog if no path
 
   // transcript source selection
@@ -220,10 +221,12 @@ export interface CuelyBridge {
   onTrackerEvent(cb: (e: TrackerEvent) => void): () => void;
 
   // global hotkeys (FR14) are registered in main; renderer just listens
+  triggerHotkey(action: HotkeyAction): Promise<void>;    // renderer-initiated action routed through main
   onHotkey(cb: (action: HotkeyAction) => void): () => void;
 }
 
 export interface DisplayInfo { id: number; label: string; primary: boolean; bounds: Rect }
+export interface ScriptPreset { label: string; path: string }
 export type HotkeyAction =
   | 'next' | 'prev' | 'top' | 'toggle-following' | 'toggle-visible';
 ```

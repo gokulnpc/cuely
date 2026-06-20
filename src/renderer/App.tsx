@@ -158,18 +158,33 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
     let stopHotkeys: (() => void) | null = null;
 
     void (async () => {
-      const presets = await bridge.listScriptPresets();
-      if (active) {
-        setScriptPresets(presets);
-        if (presets.length > 0) {
-          const firstPreset = presets[0];
-          if (firstPreset) {
-            setScriptPath(firstPreset.path);
+      try {
+        const presets = await bridge.listScriptPresets();
+        if (active) {
+          setScriptPresets(presets);
+          if (presets.length > 0) {
+            const firstPreset = presets[0];
+            if (firstPreset) {
+              setScriptPath(firstPreset.path);
+            }
           }
+        }
+      } catch (error) {
+        if (active) {
+          const message = error instanceof Error ? error.message : "Failed to list script presets.";
+          setScriptStatus(message);
         }
       }
 
-      const script = await bridge.loadScript();
+      let script = createDemoScript();
+      try {
+        script = await bridge.loadScript();
+      } catch (error) {
+        if (active) {
+          const message = error instanceof Error ? error.message : "Failed to load initial script.";
+          setScriptStatus(message);
+        }
+      }
       if (!active) {
         return;
       }

@@ -172,6 +172,24 @@ title: Demo Script
 
     offStatus();
   });
+
+  it("keeps active tracker state when script load fails", async () => {
+    const bridge = createCuelyBridge({ script: createDemoScript() });
+    const positions: number[] = [];
+    const offTracker = bridge.onTrackerEvent((event) => {
+      if (event.type === "position") {
+        positions.push(event.state.index);
+      }
+    });
+
+    await bridge.triggerHotkey("next");
+    await expect(bridge.loadScript("scripts/does-not-exist.md")).rejects.toThrow();
+    await bridge.triggerHotkey("next");
+
+    offTracker();
+
+    expect(positions.at(-1)).toBe(2);
+  });
 });
 
 async function waitFor(ms: number): Promise<void> {
