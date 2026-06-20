@@ -1,5 +1,5 @@
 import type { CueScript } from "../core/cue-model";
-import type { SourceStatus } from "../core/transcript-source";
+import type { SourceStatus, TranscriptChunk } from "../core/transcript-source";
 import type { TrackerEvent } from "../core/tracker";
 
 export interface Rect {
@@ -21,6 +21,18 @@ export interface ScriptPreset {
   path: string;
 }
 
+export interface MockSourceOptions {
+  chunks?: TranscriptChunk[];
+  timeScale?: number;
+}
+
+export interface CloudSourceOptions {
+  provider?: "deepgram" | "assemblyai";
+  apiKeyEnv?: string;
+  locale?: string;
+  interim?: boolean;
+}
+
 export type HotkeyAction =
   | "next"
   | "prev"
@@ -36,7 +48,9 @@ export interface CuelyBridge {
   setMirror(on: boolean): Promise<void>;
   listScriptPresets(): Promise<ScriptPreset[]>;
   loadScript(path?: string): Promise<CueScript>;
-  selectSource(kind: "mock" | "cloud" | "native", opts?: Record<string, unknown>): Promise<void>;
+  selectSource(kind: "mock", opts?: MockSourceOptions): Promise<void>;
+  selectSource(kind: "cloud", opts?: CloudSourceOptions): Promise<void>;
+  selectSource(kind: "native", opts?: Record<string, never>): Promise<void>;
   triggerHotkey(action: HotkeyAction): Promise<void>;
   onSourceStatus(cb: (s: SourceStatus) => void): () => void;
   onTrackerEvent(cb: (e: TrackerEvent) => void): () => void;

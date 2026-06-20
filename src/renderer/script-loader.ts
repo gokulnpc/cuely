@@ -1,17 +1,10 @@
 import type { TranscriptChunk } from "../core/transcript-source";
-import type { CuelyBridge } from "../shared/bridge";
+import type { CloudSourceOptions, CuelyBridge } from "../shared/bridge";
 import { PrompterSession } from "./prompter-session";
-
-export interface CloudSourceSelectionOptions {
-  provider?: "deepgram" | "assemblyai";
-  apiKeyEnv?: string;
-  locale?: string;
-  interim?: boolean;
-}
 
 export type SourceSelection =
   | { kind: "mock" }
-  | { kind: "cloud"; options?: CloudSourceSelectionOptions }
+  | { kind: "cloud"; options?: CloudSourceOptions }
   | { kind: "native" };
 
 export interface ScriptLoadResult {

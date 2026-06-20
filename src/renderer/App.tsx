@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { MockTranscriptSource } from "../sources/mock-source";
 import { createDemoScript, createDemoTranscript } from "../shared/demo-script";
-import type { CuelyBridge, HotkeyAction, ScriptPreset } from "../shared/bridge";
+import type { CloudSourceOptions, CuelyBridge, HotkeyAction, ScriptPreset } from "../shared/bridge";
 import { getCuelyBridge } from "./bridge-client";
 import { PrompterSession, type PrompterViewModel } from "./prompter-session";
 import {
   loadScriptIntoSession,
-  type CloudSourceSelectionOptions,
   type SourceSelection,
 } from "./script-loader";
 
@@ -403,7 +402,7 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
 
 function buildSourceSelection(
   kind: "mock" | "cloud" | "native",
-  cloudOptions: CloudSourceSelectionOptions,
+  cloudOptions: CloudSourceOptions,
 ): SourceSelection {
   if (kind === "mock") {
     return { kind: "mock" };
