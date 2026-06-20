@@ -243,6 +243,9 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
     if (result.success) {
       sessionRef.current = result.session;
       setSession(result.session);
+      if (!result.sourceReady) {
+        setSourceActionStatus("Script loaded, but source start failed. Manual mode is active.");
+      }
     }
   }
 

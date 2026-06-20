@@ -72,8 +72,41 @@ describe("loadScriptIntoSession", () => {
     });
 
     expect(result.success).toBe(true);
+    expect(result.sourceReady).toBe(true);
     expect(result.session).not.toBe(previousSession);
     expect(result.session.getViewModel().title).toBe("Loaded Script");
+    expect(selectSourceCalls).toBe(1);
+  });
+
+  it("keeps loaded session when source start fails after successful load", async () => {
+    let selectSourceCalls = 0;
+    const bridge = createBridgeStub({
+      async loadScript(): Promise<CueScript> {
+        return {
+          version: 1,
+          title: "Loaded Script",
+          cues: [{ id: "loaded", text: "Loaded cue", keywords: ["loaded"] }],
+        };
+      },
+      async selectSource(): Promise<void> {
+        selectSourceCalls += 1;
+        throw new Error("source startup failed");
+      },
+    });
+    const previousSession = new PrompterSession(createDemoScript());
+
+    const result = await loadScriptIntoSession({
+      bridge,
+      path: "scripts/loaded.md",
+      currentSession: previousSession,
+      demoChunks: createDemoTranscript(),
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.sourceReady).toBe(false);
+    expect(result.session).not.toBe(previousSession);
+    expect(result.session.getViewModel().title).toBe("Loaded Script");
+    expect(result.status).toMatch(/source failed/i);
     expect(selectSourceCalls).toBe(1);
   });
 
@@ -97,6 +130,7 @@ describe("loadScriptIntoSession", () => {
     });
 
     expect(result.success).toBe(false);
+    expect(result.sourceReady).toBe(false);
     expect(result.session).toBe(previousSession);
     expect(result.status).toMatch(/not found/i);
     expect(selectSourceCalls).toBe(0);
