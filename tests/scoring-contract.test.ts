@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CueScript } from "../src/core/cue-model";
+import { setEmbeddingSimilarityOverrideForTesting } from "../src/core/matchers/embedding";
 import { CueTracker } from "../src/core/tracker";
 
 function createScript(): CueScript {
@@ -153,5 +154,40 @@ describe("CueTracker scoring contract", () => {
     tracker.pushTranscript({ text: "budget and headcount ask", final: true, at: 3_800 });
     tracker.pushTranscript({ text: "ask for budget approval", final: true, at: 4_700 });
     expect(tracker.position.cueId).toBe("ask");
+  });
+
+  it("embedding matcher improves paraphrase recall without false jumps", () => {
+    setEmbeddingSimilarityOverrideForTesting(({ cueText, transcriptText }) => {
+      const cue = cueText.toLowerCase();
+      const transcript = transcriptText.toLowerCase();
+      if (cue.includes("what we're asking for") && transcript.includes("resource request")) {
+        return 0.95;
+      }
+      if (transcript.includes("off-topic anecdote")) {
+        return 0.02;
+      }
+      return 0.05;
+    });
+    try {
+      const tracker = new CueTracker(createScript(), {
+        stickiness: 0.05,
+        advanceMargin: 0.08,
+        minDwellMs: 200,
+        matchers: {
+          keyword: { enabled: true, recencyHalfLifeMs: 6_000 },
+          embedding: { enabled: true },
+        },
+      });
+
+      tracker.pushTranscript({ text: "off-topic anecdote about travel", final: true, at: 1_000 });
+      tracker.pushTranscript({ text: "another off-topic anecdote", final: true, at: 1_400 });
+      expect(tracker.position.cueId).toBe("headline");
+
+      tracker.pushTranscript({ text: "this is our resource request for next quarter", final: true, at: 2_000 });
+      tracker.pushTranscript({ text: "resource request and hiring plan", final: true, at: 2_350 });
+      expect(tracker.position.cueId).toBe("ask");
+    } finally {
+      setEmbeddingSimilarityOverrideForTesting(null);
+    }
   });
 });

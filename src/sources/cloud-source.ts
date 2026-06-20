@@ -76,7 +76,14 @@ export class CloudStreamingSource implements TranscriptSource {
     this.started = true;
     this.stopping = false;
     this.reconnectAttempt = 0;
-    this.openSocket(apiKey);
+    try {
+      this.openSocket(apiKey);
+    } catch (error) {
+      this.started = false;
+      const message = error instanceof Error ? error.message : "Cloud transcription failed to connect";
+      this.setStatus({ state: "error", message, recoverable: false });
+      throw error;
+    }
   }
 
   async stop(): Promise<void> {
@@ -136,9 +143,18 @@ export class CloudStreamingSource implements TranscriptSource {
       this.setStatus({ state: "error", message, recoverable: true });
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       this.socket = null;
       if (this.stopping || !this.started) {
+        return;
+      }
+      if (typeof event.code === "number" && event.code >= 4000) {
+        this.setStatus({
+          state: "error",
+          message: event.reason ?? "Cloud transcription closed by server",
+          recoverable: false,
+        });
+        this.started = false;
         return;
       }
       this.scheduleReconnect(apiKey);
@@ -178,7 +194,11 @@ export class CloudStreamingSource implements TranscriptSource {
       if (!this.started || this.stopping) {
         return;
       }
-      this.openSocket(apiKey);
+      try {
+        this.openSocket(apiKey);
+      } catch {
+        this.scheduleReconnect(apiKey);
+      }
     }, delay);
   }
 

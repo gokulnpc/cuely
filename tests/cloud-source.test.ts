@@ -52,11 +52,13 @@ describe("CloudStreamingSource", () => {
     const sockets: FakeSocket[] = [];
     const emitted: TranscriptChunk[] = [];
     const statuses: string[] = [];
+    const urls: string[] = [];
 
     const source = new CloudStreamingSource(
       { provider: "deepgram", apiKeyEnv: envKey },
       {
-        socketFactory: () => {
+        socketFactory: (url) => {
+          urls.push(url);
           const socket = new FakeSocket();
           sockets.push(socket);
           return socket;
@@ -84,10 +86,67 @@ describe("CloudStreamingSource", () => {
     });
 
     expect(statuses).toContain("listening");
+    expect(urls[0]).toContain("deepgram");
+    expect(urls[0]).toContain("token=secret");
     expect(emitted).toEqual([
       { text: "hello team", final: false, confidence: 0.41, at: 1_234 },
       { text: "hello team welcome", final: true, confidence: 0.92, at: 1_234 },
     ]);
+  });
+
+  it("maps assemblyai partial and final frames", async () => {
+    process.env[envKey] = "secret";
+    const sockets: FakeSocket[] = [];
+    const emitted: TranscriptChunk[] = [];
+    const urls: string[] = [];
+
+    const source = new CloudStreamingSource(
+      { provider: "assemblyai", apiKeyEnv: envKey },
+      {
+        socketFactory: (url) => {
+          urls.push(url);
+          const socket = new FakeSocket();
+          sockets.push(socket);
+          return socket;
+        },
+        now: () => 500,
+      },
+    );
+
+    source.onChunk((chunk) => emitted.push(chunk));
+    await source.start();
+    sockets[0]?.emitOpen();
+    sockets[0]?.emitMessage({ message_type: "PartialTranscript", text: "budget ask", confidence: 0.5 });
+    sockets[0]?.emitMessage({ message_type: "FinalTranscript", text: "budget ask now", confidence: 0.9 });
+
+    expect(urls[0]).toContain("assemblyai");
+    expect(urls[0]).toContain("token=secret");
+    expect(emitted).toEqual([
+      { text: "budget ask", final: false, confidence: 0.5, at: 500 },
+      { text: "budget ask now", final: true, confidence: 0.9, at: 500 },
+    ]);
+  });
+
+  it("ignores malformed and empty frames", async () => {
+    process.env[envKey] = "secret";
+    const socket = new FakeSocket();
+    const emitted: TranscriptChunk[] = [];
+
+    const source = new CloudStreamingSource(
+      { provider: "deepgram", apiKeyEnv: envKey },
+      {
+        socketFactory: () => socket,
+        now: () => 900,
+      },
+    );
+    source.onChunk((chunk) => emitted.push(chunk));
+    await source.start();
+    socket.emitOpen();
+    socket.onmessage?.({ data: "not-json" });
+    socket.emitMessage({ type: "Results", is_final: false, channel: { alternatives: [{ transcript: "" }] } });
+    socket.emitMessage({ type: "Results", channel: {} });
+
+    expect(emitted).toEqual([]);
   });
 
   it("retries after close and emits terminal error after retry budget", async () => {
@@ -137,5 +196,52 @@ describe("CloudStreamingSource", () => {
     expect(
       statuses.some((status) => status.state === "error" && status.recoverable === false),
     ).toBe(true);
+  });
+
+  it("treats server-side terminal close as non-recoverable", async () => {
+    process.env[envKey] = "secret";
+    const socket = new FakeSocket();
+    const statuses: Array<{ state: string; recoverable?: boolean }> = [];
+    const source = new CloudStreamingSource(
+      { provider: "deepgram", apiKeyEnv: envKey },
+      {
+        socketFactory: () => socket,
+      },
+    );
+
+    source.onStatus((status) => {
+      if (status.state === "error") {
+        statuses.push({ state: status.state, recoverable: status.recoverable });
+      } else {
+        statuses.push({ state: status.state });
+      }
+    });
+
+    await source.start();
+    socket.emitOpen();
+    socket.emitClose(4001, "unauthorized");
+
+    expect(statuses.some((status) => status.state === "error" && status.recoverable === false)).toBe(true);
+  });
+
+  it("emits non-recoverable error if socket creation fails", async () => {
+    process.env[envKey] = "secret";
+    const statuses: Array<{ state: string; recoverable?: boolean }> = [];
+    const source = new CloudStreamingSource(
+      { provider: "deepgram", apiKeyEnv: envKey },
+      {
+        socketFactory: () => {
+          throw new Error("Socket unavailable");
+        },
+      },
+    );
+    source.onStatus((status) => {
+      if (status.state === "error") {
+        statuses.push({ state: status.state, recoverable: status.recoverable });
+      }
+    });
+
+    await expect(source.start()).rejects.toThrow(/socket unavailable/i);
+    expect(statuses.some((status) => status.recoverable === false)).toBe(true);
   });
 });
