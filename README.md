@@ -86,13 +86,17 @@ cuely/
 ```bash
 npm ci
 npm run test          # runs the pure-core test suite (no platform deps)
-npm run dev           # launches the Electron app with the MOCK transcript source
-npm run dev:native    # launches with the Swift sidecar (macOS only; builds sidecar)
+npm run dev           # launches the Vite web preview
+npm run dev:electron  # launches Electron with the MOCK transcript source
+npm run dev:native    # launches Electron with source preselected to native
 ```
 
 The app boots with `MockTranscriptSource` by default so it runs anywhere, including in
 the cloud agent's headless mode. Swap to the cloud or native source via config — see
 [docs/API.md](docs/API.md).
+
+`npm run dev:native` currently preselects the native source path in Electron; you still
+need the local Swift sidecar runtime for real on-device transcription.
 
 ## Status
 
