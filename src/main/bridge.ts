@@ -45,7 +45,9 @@ export function createCuelyBridge(options: BridgeOptions): CuelyBridge {
         return;
       }
       if (kind === "cloud") {
-        await trackerService.selectSource(new CloudStreamingSource());
+        await trackerService.selectSource(
+          new CloudStreamingSource({ provider: "deepgram", apiKeyEnv: "DEEPGRAM_API_KEY" }),
+        );
         return;
       }
       await trackerService.selectSource(new NativeTranscriptSource());

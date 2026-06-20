@@ -58,7 +58,7 @@ function parseFrontMatter(markdown: string): { title?: string; body: string } {
   const body = lines.slice(endIndex + 1).join("\n");
   const titleLine = headerLines.find((line) => line.toLowerCase().startsWith("title:"));
   const title = titleLine ? titleLine.slice("title:".length).trim() : undefined;
-  return { title, body };
+  return title ? { title, body } : { body };
 }
 
 function parseCueBullets(body: string): ParsedCue[] {
@@ -74,14 +74,21 @@ function parseCueBullets(body: string): ParsedCue[] {
 
     const topLevelMatch = line.match(/^- (.+)$/u);
     if (topLevelMatch) {
-      current = parseTopLevelCue(topLevelMatch[1]);
+      const cueLine = topLevelMatch[1];
+      if (!cueLine) {
+        continue;
+      }
+      current = parseTopLevelCue(cueLine);
       cues.push(current);
       continue;
     }
 
     const noteMatch = line.match(/^\s{2,}- (.+)$/u);
     if (noteMatch && current) {
-      current.notes.push(noteMatch[1].trim());
+      const noteText = noteMatch[1];
+      if (noteText) {
+        current.notes.push(noteText.trim());
+      }
     }
   }
 
@@ -94,11 +101,14 @@ function parseCueBullets(body: string): ParsedCue[] {
 
 function parseTopLevelCue(lineText: string): ParsedCue {
   const keywordMatch = lineText.match(/\{kw:\s*([^}]+)\}/iu);
+  const keywordText = keywordMatch?.[1];
   const authoredKeywords = keywordMatch
-    ? keywordMatch[1]
+    ? keywordText
+        ? keywordText
         .split(",")
         .map((keyword) => keyword.trim().toLowerCase())
         .filter((keyword) => keyword.length > 0)
+        : []
     : [];
   const text = lineText.replace(/\s*\{kw:\s*[^}]+\}\s*/iu, " ").replace(/\s+/gu, " ").trim();
 

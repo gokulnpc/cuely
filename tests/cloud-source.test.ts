@@ -26,7 +26,10 @@ class FakeSocket implements CloudSocket {
   }
 
   emitClose(code?: number, reason?: string): void {
-    this.onclose?.({ code, reason });
+    this.onclose?.({
+      ...(code !== undefined ? { code } : {}),
+      ...(reason !== undefined ? { reason } : {}),
+    });
   }
 }
 
