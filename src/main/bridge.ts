@@ -2,10 +2,17 @@ import type { CueScript } from "../core/cue-model";
 import { compileCueScriptFromMarkdown } from "../core/cue-compiler";
 import type { SourceStatus, TranscriptChunk } from "../core/transcript-source";
 import type { TrackerEvent } from "../core/tracker";
-import { CloudStreamingSource } from "../sources/cloud-source";
+import { CloudStreamingSource, type CloudSourceOptions } from "../sources/cloud-source";
 import { MockTranscriptSource } from "../sources/mock-source";
 import { NativeTranscriptSource } from "../sources/native-source";
-import type { CuelyBridge, DisplayInfo, HotkeyAction, ScriptPreset } from "../shared/bridge";
+import type {
+  CloudSourceOptions as BridgeCloudSourceOptions,
+  CuelyBridge,
+  DisplayInfo,
+  HotkeyAction,
+  MockSourceOptions,
+  ScriptPreset,
+} from "../shared/bridge";
 import { TrackerService } from "./tracker-service";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -80,18 +87,37 @@ export function createCuelyBridge(options: BridgeOptions): CuelyBridge {
       attachRelay(trackerService);
       return nextScript;
     },
-    async selectSource(kind: "mock" | "cloud" | "native", opts?: Record<string, unknown>): Promise<void> {
+    async selectSource(
+      kind: "mock" | "cloud" | "native",
+      opts?: MockSourceOptions | BridgeCloudSourceOptions | Record<string, never>,
+    ): Promise<void> {
       if (kind === "mock") {
-        const chunks = chunksFromUnknown(opts?.chunks);
-        const timeScale = typeof opts?.timeScale === "number" ? opts.timeScale : undefined;
+        const mockOpts = (opts ?? {}) as MockSourceOptions;
+        const chunks = chunksFromUnknown(mockOpts.chunks);
+        const timeScale = typeof mockOpts.timeScale === "number" ? mockOpts.timeScale : undefined;
         await trackerService.selectSource(
           new MockTranscriptSource(chunks, timeScale === undefined ? {} : { timeScale }),
         );
         return;
       }
       if (kind === "cloud") {
+        const cloudOpts = (opts ?? {}) as BridgeCloudSourceOptions;
+        const provider =
+          cloudOpts.provider === "assemblyai" || cloudOpts.provider === "deepgram"
+            ? cloudOpts.provider
+            : "deepgram";
+        const apiKeyEnv =
+          typeof cloudOpts.apiKeyEnv === "string" && cloudOpts.apiKeyEnv.trim().length > 0
+            ? cloudOpts.apiKeyEnv
+            : defaultApiKeyEnvForProvider(provider);
+        const cloudOptions: CloudSourceOptions = {
+          provider,
+          apiKeyEnv,
+          ...(typeof cloudOpts.locale === "string" ? { locale: cloudOpts.locale } : {}),
+          ...(typeof cloudOpts.interim === "boolean" ? { interim: cloudOpts.interim } : {}),
+        };
         await trackerService.selectSource(
-          new CloudStreamingSource({ provider: "deepgram", apiKeyEnv: "DEEPGRAM_API_KEY" }),
+          new CloudStreamingSource(cloudOptions),
         );
         return;
       }
@@ -167,4 +193,8 @@ function defaultScriptPresets(): ScriptPreset[] {
     { label: "Q3 Review (Markdown)", path: "scripts/q3-review.md" },
     { label: "Q3 Review (JSON)", path: "scripts/q3-review.json" },
   ];
+}
+
+function defaultApiKeyEnvForProvider(provider: CloudSourceOptions["provider"]): string {
+  return provider === "assemblyai" ? "ASSEMBLYAI_API_KEY" : "DEEPGRAM_API_KEY";
 }

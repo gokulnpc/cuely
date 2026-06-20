@@ -79,6 +79,9 @@ export class PrompterSession {
 
   applyHotkey(action: HotkeyAction): void {
     if (action === "toggle-following") {
+      if (!this.state.following && this.state.sourceStatus.state === "error") {
+        return;
+      }
       this.state = { ...this.state, following: !this.state.following };
       this.emit();
       return;
@@ -109,7 +112,11 @@ export class PrompterSession {
   }
 
   setSourceStatus(status: SourceStatus): void {
-    this.state = { ...this.state, sourceStatus: status };
+    this.state = {
+      ...this.state,
+      sourceStatus: status,
+      ...(status.state === "error" ? { following: false } : {}),
+    };
     this.emit();
   }
 

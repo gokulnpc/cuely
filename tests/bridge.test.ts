@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import type { CueScript } from "../src/core/cue-model";
+import type { SourceStatus } from "../src/core/transcript-source";
 import { createCuelyBridge } from "../src/main/bridge";
 import { PrompterSession } from "../src/renderer/prompter-session";
 import { createDemoScript } from "../src/shared/demo-script";
@@ -113,6 +114,120 @@ title: Demo Script
 
     expect(session.getViewModel().currentCue.id).toBe("ask");
     expect(session.getViewModel().sourceStatus.state).toBe("listening");
+  });
+
+  it("publishes source status for mock and cloud failures", async () => {
+    const previousDeepgramKey = process.env.DEEPGRAM_API_KEY;
+    delete process.env.DEEPGRAM_API_KEY;
+
+    try {
+      const bridge = createCuelyBridge({ script: createDemoScript() });
+      const statuses: SourceStatus[] = [];
+      const session = new PrompterSession(createDemoScript());
+      const offStatus = bridge.onSourceStatus((status) => statuses.push(status));
+      const offStatusToSession = bridge.onSourceStatus((status) => session.setSourceStatus(status));
+
+      await bridge.selectSource("mock", {
+        chunks: [{ text: "headline", final: true, at: 0 }],
+        timeScale: 100,
+      });
+      await waitFor(20);
+
+      expect(statuses.some((status) => status.state === "listening")).toBe(true);
+
+      await expect(bridge.selectSource("cloud")).rejects.toThrow(/missing api key/i);
+      expect(
+        statuses.some(
+          (status) => status.state === "error" && status.recoverable === false,
+        ),
+      ).toBe(true);
+      expect(session.getViewModel().following).toBe(false);
+
+      offStatus();
+      offStatusToSession();
+    } finally {
+      if (previousDeepgramKey !== undefined) {
+        process.env.DEEPGRAM_API_KEY = previousDeepgramKey;
+      } else {
+        delete process.env.DEEPGRAM_API_KEY;
+      }
+    }
+  });
+
+  it("native source reports recoverable status error", async () => {
+    const bridge = createCuelyBridge({ script: createDemoScript() });
+    const statuses: SourceStatus[] = [];
+    const offStatus = bridge.onSourceStatus((status) => statuses.push(status));
+
+    await bridge.selectSource("native");
+
+    expect(
+      statuses.some(
+        (status) =>
+          status.state === "error" &&
+          status.recoverable === true &&
+          /not available in cloud/i.test(status.message),
+      ),
+    ).toBe(true);
+
+    offStatus();
+  });
+
+  it("uses cloud selectSource options for provider credentials", async () => {
+    const previousCustom = process.env.CUSTOM_CLOUD_KEY;
+    delete process.env.CUSTOM_CLOUD_KEY;
+    try {
+      const bridge = createCuelyBridge({ script: createDemoScript() });
+      await expect(
+        bridge.selectSource("cloud", {
+          provider: "assemblyai",
+          apiKeyEnv: "CUSTOM_CLOUD_KEY",
+        }),
+      ).rejects.toThrow(/CUSTOM_CLOUD_KEY/);
+    } finally {
+      if (previousCustom !== undefined) {
+        process.env.CUSTOM_CLOUD_KEY = previousCustom;
+      } else {
+        delete process.env.CUSTOM_CLOUD_KEY;
+      }
+    }
+  });
+
+  it("uses provider-specific default api key env for assemblyai", async () => {
+    const previousAssembly = process.env.ASSEMBLYAI_API_KEY;
+    delete process.env.ASSEMBLYAI_API_KEY;
+    try {
+      const bridge = createCuelyBridge({ script: createDemoScript() });
+      await expect(
+        bridge.selectSource("cloud", {
+          provider: "assemblyai",
+        }),
+      ).rejects.toThrow(/ASSEMBLYAI_API_KEY/);
+    } finally {
+      if (previousAssembly !== undefined) {
+        process.env.ASSEMBLYAI_API_KEY = previousAssembly;
+      } else {
+        delete process.env.ASSEMBLYAI_API_KEY;
+      }
+    }
+  });
+
+  it("keeps active tracker state when script load fails", async () => {
+    const bridge = createCuelyBridge({ script: createDemoScript() });
+    const positions: number[] = [];
+    const offTracker = bridge.onTrackerEvent((event) => {
+      if (event.type === "position") {
+        positions.push(event.state.index);
+      }
+    });
+
+    await bridge.triggerHotkey("next");
+    await expect(bridge.loadScript("scripts/does-not-exist.md")).rejects.toThrow();
+    await bridge.triggerHotkey("next");
+
+    offTracker();
+
+    expect(positions.at(-1)).toBe(2);
   });
 });
 

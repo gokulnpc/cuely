@@ -5,6 +5,11 @@ import type { CuelyBridge, HotkeyAction, ScriptPreset } from "../shared/bridge";
 import { getCuelyBridge } from "./bridge-client";
 import { PrompterSession, type PrompterViewModel } from "./prompter-session";
 import { loadScriptIntoSession } from "./script-loader";
+import {
+  applySourceSelection,
+  buildSourceSelection,
+  type SourceSelection,
+} from "./source-selection";
 
 function ThemeContainer({ model }: { model: PrompterViewModel }): ReactElement {
   if (!model.visible) {
@@ -40,6 +45,11 @@ function ThemeContainer({ model }: { model: PrompterViewModel }): ReactElement {
         </p>
         {model.unsure ? (
           <p style={{ color: "#f59e0b", margin: "0.4rem 0" }}>Unsure — holding current cue.</p>
+        ) : null}
+        {model.sourceStatus.state === "error" ? (
+          <p style={{ color: "#ef4444", margin: "0.4rem 0" }}>
+            Source error: {model.sourceStatus.message}. Voice following is unavailable; use manual controls.
+          </p>
         ) : null}
       </header>
       <section
@@ -136,6 +146,15 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
   const [scriptPath, setScriptPath] = useState("scripts/q3-review.md");
   const [scriptPresets, setScriptPresets] = useState<ScriptPreset[]>([]);
   const [scriptStatus, setScriptStatus] = useState<string | null>(null);
+  const [sourceKind, setSourceKind] = useState<"mock" | "cloud" | "native">("mock");
+  const [cloudProvider, setCloudProvider] = useState<"deepgram" | "assemblyai">("deepgram");
+  const [cloudApiKeyEnv, setCloudApiKeyEnv] = useState("DEEPGRAM_API_KEY");
+  const [cloudLocale, setCloudLocale] = useState("en-US");
+  const [cloudInterim, setCloudInterim] = useState(true);
+  const [sourceActionStatus, setSourceActionStatus] = useState<string | null>(null);
+  const [activeSourceSelection, setActiveSourceSelection] = useState<SourceSelection>({
+    kind: "mock",
+  });
   const sessionRef = useRef(session);
 
   useEffect(() => {
@@ -151,18 +170,40 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
     let stopHotkeys: (() => void) | null = null;
 
     void (async () => {
-      const presets = await bridge.listScriptPresets();
-      if (active) {
-        setScriptPresets(presets);
-        if (presets.length > 0) {
-          const firstPreset = presets[0];
-          if (firstPreset) {
-            setScriptPath(firstPreset.path);
+      let initialPresetPath: string | null = null;
+      try {
+        const presets = await bridge.listScriptPresets();
+        if (active) {
+          setScriptPresets(presets);
+          if (presets.length > 0) {
+            const firstPreset = presets[0];
+            if (firstPreset) {
+              setScriptPath(firstPreset.path);
+              initialPresetPath = firstPreset.path;
+            }
           }
+        }
+      } catch (error) {
+        if (active) {
+          const message = error instanceof Error ? error.message : "Failed to list script presets.";
+          setScriptStatus(message);
         }
       }
 
-      const script = await bridge.loadScript();
+      let script = createDemoScript();
+      try {
+        script = initialPresetPath
+          ? await bridge.loadScript(initialPresetPath)
+          : await bridge.loadScript();
+        if (active && initialPresetPath) {
+          setScriptStatus(`Loaded preset: ${initialPresetPath}`);
+        }
+      } catch (error) {
+        if (active) {
+          const message = error instanceof Error ? error.message : "Failed to load initial script.";
+          setScriptStatus(message);
+        }
+      }
       if (!active) {
         return;
       }
@@ -183,7 +224,7 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
         }
       });
 
-      await bridge.selectSource("mock", { chunks: createDemoTranscript() });
+      await selectSourceKind("mock");
     })();
 
     return () => {
@@ -211,16 +252,63 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
   }
 
   async function loadScriptFromPath(): Promise<void> {
+    const sourceSelection = buildSourceSelection(sourceKind, {
+      provider: cloudProvider,
+      apiKeyEnv: cloudApiKeyEnv.trim(),
+      locale: cloudLocale.trim(),
+      interim: cloudInterim,
+    });
     const result = await loadScriptIntoSession({
       bridge,
       path: scriptPath.trim(),
+      sourceSelection,
       currentSession: sessionRef.current,
       demoChunks: createDemoTranscript(),
     });
     setScriptStatus(result.status);
     if (result.success) {
+      setActiveSourceSelection(sourceSelection);
       sessionRef.current = result.session;
       setSession(result.session);
+      if (!result.sourceReady) {
+        setSourceActionStatus("Script loaded, but source start failed. Manual mode is active.");
+      }
+    }
+  }
+
+  async function selectSourceKind(kind: "mock" | "cloud" | "native"): Promise<void> {
+    setSourceKind(kind);
+    const sourceSelection = buildSourceSelection(kind, {
+      provider: cloudProvider,
+      apiKeyEnv: cloudApiKeyEnv.trim(),
+      locale: cloudLocale.trim(),
+      interim: cloudInterim,
+    });
+    try {
+      await applySourceSelection({
+        bridge,
+        selection: sourceSelection,
+        demoChunks: createDemoTranscript(),
+      });
+      setActiveSourceSelection(sourceSelection);
+      setSourceActionStatus(`Source selected: ${kind}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to switch source.";
+      setSourceActionStatus(message);
+    }
+  }
+
+  async function retryActiveSource(): Promise<void> {
+    try {
+      await applySourceSelection({
+        bridge,
+        selection: activeSourceSelection,
+        demoChunks: createDemoTranscript(),
+      });
+      setSourceActionStatus(`Source retried: ${activeSourceSelection.kind}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to retry source.";
+      setSourceActionStatus(message);
     }
   }
 
@@ -262,6 +350,74 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
           Load Script
         </button>
         {scriptStatus ? <span>{scriptStatus}</span> : null}
+      </div>
+      <div style={{ padding: "0 0.75rem 0.75rem 0.75rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <label>
+          Source
+          <select value={sourceKind} onChange={(event) => setSourceKind(event.target.value as "mock" | "cloud" | "native")}>
+            <option value="mock">mock</option>
+            <option value="cloud">cloud</option>
+            <option value="native">native</option>
+          </select>
+        </label>
+        <button type="button" onClick={() => void selectSourceKind(sourceKind)}>
+          Apply Source
+        </button>
+        <button type="button" onClick={() => void retryActiveSource()}>
+          Retry Source
+        </button>
+        {sourceKind === "cloud" ? (
+          <>
+            <label>
+              Provider
+              <select
+                value={cloudProvider}
+                onChange={(event) => {
+                  const nextProvider = event.target.value as "deepgram" | "assemblyai";
+                  setCloudProvider(nextProvider);
+                  const defaultEnv =
+                    nextProvider === "assemblyai" ? "ASSEMBLYAI_API_KEY" : "DEEPGRAM_API_KEY";
+                  if (
+                    cloudApiKeyEnv === "DEEPGRAM_API_KEY" ||
+                    cloudApiKeyEnv === "ASSEMBLYAI_API_KEY"
+                  ) {
+                    setCloudApiKeyEnv(defaultEnv);
+                  }
+                }}
+              >
+                <option value="deepgram">deepgram</option>
+                <option value="assemblyai">assemblyai</option>
+              </select>
+            </label>
+            <label>
+              API env
+              <input
+                type="text"
+                value={cloudApiKeyEnv}
+                onChange={(event) => setCloudApiKeyEnv(event.target.value)}
+                style={{ minWidth: "180px" }}
+              />
+            </label>
+            <label>
+              Locale
+              <input
+                type="text"
+                value={cloudLocale}
+                onChange={(event) => setCloudLocale(event.target.value)}
+                style={{ width: "90px" }}
+              />
+            </label>
+            <label>
+              Interim
+              <input
+                type="checkbox"
+                checked={cloudInterim}
+                onChange={(event) => setCloudInterim(event.target.checked)}
+              />
+            </label>
+          </>
+        ) : null}
+        {sourceActionStatus ? <span>{sourceActionStatus}</span> : null}
       </div>
       <ThemeContainer model={model} />
     </>

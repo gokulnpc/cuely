@@ -74,4 +74,35 @@ describe("PrompterSession", () => {
     expect(session.getViewModel().following).toBe(false);
     expect(session.getViewModel().currentCue.id).toBe("c1");
   });
+
+  it("degrades to manual mode when source reports error", () => {
+    const session = new PrompterSession(createScript());
+
+    session.setSourceStatus({
+      state: "error",
+      message: "microphone unavailable",
+      recoverable: false,
+    });
+
+    expect(session.getViewModel().sourceStatus.state).toBe("error");
+    expect(session.getViewModel().following).toBe(false);
+  });
+
+  it("does not re-enable following while source remains in error", () => {
+    const session = new PrompterSession(createScript());
+
+    session.setSourceStatus({
+      state: "error",
+      message: "network down",
+      recoverable: true,
+    });
+    expect(session.getViewModel().following).toBe(false);
+
+    session.applyHotkey("toggle-following");
+    expect(session.getViewModel().following).toBe(false);
+
+    session.setSourceStatus({ state: "listening" });
+    session.applyHotkey("toggle-following");
+    expect(session.getViewModel().following).toBe(true);
+  });
 });
