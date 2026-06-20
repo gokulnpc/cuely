@@ -123,7 +123,9 @@ title: Demo Script
     try {
       const bridge = createCuelyBridge({ script: createDemoScript() });
       const statuses: SourceStatus[] = [];
+      const session = new PrompterSession(createDemoScript());
       const offStatus = bridge.onSourceStatus((status) => statuses.push(status));
+      const offStatusToSession = bridge.onSourceStatus((status) => session.setSourceStatus(status));
 
       await bridge.selectSource("mock", {
         chunks: [{ text: "headline", final: true, at: 0 }],
@@ -139,8 +141,10 @@ title: Demo Script
           (status) => status.state === "error" && status.recoverable === false,
         ),
       ).toBe(true);
+      expect(session.getViewModel().following).toBe(false);
 
       offStatus();
+      offStatusToSession();
     } finally {
       if (previousDeepgramKey !== undefined) {
         process.env.DEEPGRAM_API_KEY = previousDeepgramKey;

@@ -74,4 +74,17 @@ describe("PrompterSession", () => {
     expect(session.getViewModel().following).toBe(false);
     expect(session.getViewModel().currentCue.id).toBe("c1");
   });
+
+  it("degrades to manual mode when source reports error", () => {
+    const session = new PrompterSession(createScript());
+
+    session.setSourceStatus({
+      state: "error",
+      message: "microphone unavailable",
+      recoverable: false,
+    });
+
+    expect(session.getViewModel().sourceStatus.state).toBe("error");
+    expect(session.getViewModel().following).toBe(false);
+  });
 });

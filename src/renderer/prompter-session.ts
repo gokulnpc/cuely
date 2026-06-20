@@ -109,7 +109,11 @@ export class PrompterSession {
   }
 
   setSourceStatus(status: SourceStatus): void {
-    this.state = { ...this.state, sourceStatus: status };
+    this.state = {
+      ...this.state,
+      sourceStatus: status,
+      ...(status.state === "error" ? { following: false } : {}),
+    };
     this.emit();
   }
 

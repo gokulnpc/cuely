@@ -52,6 +52,9 @@ export class TrackerService {
     });
     this.detachSourceStatus = source.onStatus((status) => {
       this.sourceStatus = status;
+      if (status.state === "error") {
+        this.following = false;
+      }
       for (const listener of this.sourceStatusListeners) {
         listener(status);
       }
