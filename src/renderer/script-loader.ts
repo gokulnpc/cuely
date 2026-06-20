@@ -1,11 +1,7 @@
 import type { TranscriptChunk } from "../core/transcript-source";
-import type { CloudSourceOptions, CuelyBridge } from "../shared/bridge";
+import type { CuelyBridge } from "../shared/bridge";
 import { PrompterSession } from "./prompter-session";
-
-export type SourceSelection =
-  | { kind: "mock" }
-  | { kind: "cloud"; options?: CloudSourceOptions }
-  | { kind: "native" };
+import { applySourceSelection, type SourceSelection } from "./source-selection";
 
 export interface ScriptLoadResult {
   session: PrompterSession;
@@ -26,20 +22,11 @@ export async function loadScriptIntoSession(params: {
     const nextScript = await bridge.loadScript(path);
     const nextSession = new PrompterSession(nextScript);
     try {
-      if (sourceSelection.kind === "mock") {
-        await bridge.selectSource("mock", { chunks: demoChunks });
-      } else if (sourceSelection.kind === "cloud") {
-        const options = sourceSelection.options ?? {};
-        const cloudOpts = {
-          ...(options.provider ? { provider: options.provider } : {}),
-          ...(options.apiKeyEnv ? { apiKeyEnv: options.apiKeyEnv } : {}),
-          ...(options.locale ? { locale: options.locale } : {}),
-          ...(typeof options.interim === "boolean" ? { interim: options.interim } : {}),
-        };
-        await bridge.selectSource("cloud", cloudOpts);
-      } else {
-        await bridge.selectSource("native");
-      }
+      await applySourceSelection({
+        bridge,
+        selection: sourceSelection,
+        demoChunks,
+      });
       return {
         session: nextSession,
         status: `Loaded script: ${nextScript.title ?? path} (source: ${sourceSelection.kind})`,

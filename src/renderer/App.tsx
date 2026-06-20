@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { MockTranscriptSource } from "../sources/mock-source";
 import { createDemoScript, createDemoTranscript } from "../shared/demo-script";
-import type { CloudSourceOptions, CuelyBridge, HotkeyAction, ScriptPreset } from "../shared/bridge";
+import type { CuelyBridge, HotkeyAction, ScriptPreset } from "../shared/bridge";
 import { getCuelyBridge } from "./bridge-client";
 import { PrompterSession, type PrompterViewModel } from "./prompter-session";
+import { loadScriptIntoSession } from "./script-loader";
 import {
-  loadScriptIntoSession,
+  applySourceSelection,
+  buildSourceSelection,
   type SourceSelection,
-} from "./script-loader";
+} from "./source-selection";
 
 function ThemeContainer({ model }: { model: PrompterViewModel }): ReactElement {
   if (!model.visible) {
@@ -150,6 +152,9 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
   const [cloudLocale, setCloudLocale] = useState("en-US");
   const [cloudInterim, setCloudInterim] = useState(true);
   const [sourceActionStatus, setSourceActionStatus] = useState<string | null>(null);
+  const [activeSourceSelection, setActiveSourceSelection] = useState<SourceSelection>({
+    kind: "mock",
+  });
   const sessionRef = useRef(session);
 
   useEffect(() => {
@@ -255,6 +260,7 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
     });
     setScriptStatus(result.status);
     if (result.success) {
+      setActiveSourceSelection(sourceSelection);
       sessionRef.current = result.session;
       setSession(result.session);
       if (!result.sourceReady) {
@@ -265,28 +271,36 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
 
   async function selectSourceKind(kind: "mock" | "cloud" | "native"): Promise<void> {
     setSourceKind(kind);
+    const sourceSelection = buildSourceSelection(kind, {
+      provider: cloudProvider,
+      apiKeyEnv: cloudApiKeyEnv.trim(),
+      locale: cloudLocale.trim(),
+      interim: cloudInterim,
+    });
     try {
-      if (kind === "mock") {
-        await bridge.selectSource("mock", { chunks: createDemoTranscript() });
-      } else if (kind === "cloud") {
-        const sourceSelection = buildSourceSelection("cloud", {
-          provider: cloudProvider,
-          apiKeyEnv: cloudApiKeyEnv.trim(),
-          locale: cloudLocale.trim(),
-          interim: cloudInterim,
-        });
-        if (sourceSelection.kind === "cloud") {
-          const cloudOpts: Record<string, unknown> = {
-            ...(sourceSelection.options ?? {}),
-          };
-          await bridge.selectSource("cloud", cloudOpts);
-        }
-      } else {
-        await bridge.selectSource(kind);
-      }
+      await applySourceSelection({
+        bridge,
+        selection: sourceSelection,
+        demoChunks: createDemoTranscript(),
+      });
+      setActiveSourceSelection(sourceSelection);
       setSourceActionStatus(`Source selected: ${kind}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to switch source.";
+      setSourceActionStatus(message);
+    }
+  }
+
+  async function retryActiveSource(): Promise<void> {
+    try {
+      await applySourceSelection({
+        bridge,
+        selection: activeSourceSelection,
+        demoChunks: createDemoTranscript(),
+      });
+      setSourceActionStatus(`Source retried: ${activeSourceSelection.kind}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to retry source.";
       setSourceActionStatus(message);
     }
   }
@@ -341,6 +355,9 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
         </label>
         <button type="button" onClick={() => void selectSourceKind(sourceKind)}>
           Apply Source
+        </button>
+        <button type="button" onClick={() => void retryActiveSource()}>
+          Retry Source
         </button>
         {sourceKind === "cloud" ? (
           <>
@@ -398,28 +415,6 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
       <ThemeContainer model={model} />
     </>
   );
-}
-
-function buildSourceSelection(
-  kind: "mock" | "cloud" | "native",
-  cloudOptions: CloudSourceOptions,
-): SourceSelection {
-  if (kind === "mock") {
-    return { kind: "mock" };
-  }
-  if (kind === "native") {
-    return { kind: "native" };
-  }
-
-  return {
-    kind: "cloud",
-    options: {
-      ...(cloudOptions.provider ? { provider: cloudOptions.provider } : {}),
-      ...(cloudOptions.apiKeyEnv ? { apiKeyEnv: cloudOptions.apiKeyEnv } : {}),
-      ...(cloudOptions.locale ? { locale: cloudOptions.locale } : {}),
-      ...(typeof cloudOptions.interim === "boolean" ? { interim: cloudOptions.interim } : {}),
-    },
-  };
 }
 
 interface ControlsProps {

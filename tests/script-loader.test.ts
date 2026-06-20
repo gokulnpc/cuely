@@ -122,6 +122,7 @@ describe("loadScriptIntoSession", () => {
 
   it("uses selected non-mock source kind during script load flow", async () => {
     let selectedKind: "mock" | "cloud" | "native" | null = null;
+    let selectedOpts: Record<string, unknown> | undefined;
     const bridge = createBridgeStub({
       async loadScript(): Promise<CueScript> {
         return {
@@ -130,8 +131,12 @@ describe("loadScriptIntoSession", () => {
           cues: [{ id: "loaded", text: "Loaded cue", keywords: ["loaded"] }],
         };
       },
-      async selectSource(kind: "mock" | "cloud" | "native"): Promise<void> {
+      async selectSource(
+        kind: "mock" | "cloud" | "native",
+        opts?: Record<string, unknown>,
+      ): Promise<void> {
         selectedKind = kind;
+        selectedOpts = opts;
       },
     });
     const previousSession = new PrompterSession(createDemoScript());
@@ -155,6 +160,10 @@ describe("loadScriptIntoSession", () => {
     expect(result.success).toBe(true);
     expect(result.sourceReady).toBe(true);
     expect(selectedKind).toBe("cloud");
+    expect(selectedOpts?.provider).toBe("assemblyai");
+    expect(selectedOpts?.apiKeyEnv).toBe("ASSEMBLYAI_API_KEY");
+    expect(selectedOpts?.locale).toBe("en-US");
+    expect(selectedOpts?.interim).toBe(false);
   });
 
   it("keeps existing session when script load fails", async () => {
