@@ -170,6 +170,7 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
     let stopHotkeys: (() => void) | null = null;
 
     void (async () => {
+      let initialPresetPath: string | null = null;
       try {
         const presets = await bridge.listScriptPresets();
         if (active) {
@@ -178,6 +179,7 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
             const firstPreset = presets[0];
             if (firstPreset) {
               setScriptPath(firstPreset.path);
+              initialPresetPath = firstPreset.path;
             }
           }
         }
@@ -190,7 +192,12 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
 
       let script = createDemoScript();
       try {
-        script = await bridge.loadScript();
+        script = initialPresetPath
+          ? await bridge.loadScript(initialPresetPath)
+          : await bridge.loadScript();
+        if (active && initialPresetPath) {
+          setScriptStatus(`Loaded preset: ${initialPresetPath}`);
+        }
       } catch (error) {
         if (active) {
           const message = error instanceof Error ? error.message : "Failed to load initial script.";
