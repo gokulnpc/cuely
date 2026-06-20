@@ -79,7 +79,9 @@ export function createCuelyBridge(options: BridgeOptions): CuelyBridge {
       if (kind === "mock") {
         const chunks = chunksFromUnknown(opts?.chunks);
         const timeScale = typeof opts?.timeScale === "number" ? opts.timeScale : undefined;
-        await trackerService.selectSource(new MockTranscriptSource(chunks, { timeScale }));
+        await trackerService.selectSource(
+          new MockTranscriptSource(chunks, timeScale === undefined ? {} : { timeScale }),
+        );
         return;
       }
       if (kind === "cloud") {
