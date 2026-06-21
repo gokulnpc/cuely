@@ -1,5 +1,5 @@
 {
-  "install": "npm ci",
+  "install": "npm ci && npm ls electron concurrently wait-on cross-env tsx --depth=0",
   "terminals": [
     {
       "name": "checks",
