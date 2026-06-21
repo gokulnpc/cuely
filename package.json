@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:electron": "concurrently -k -n vite,electron \"vite\" \"wait-on tcp:5173 && cross-env NODE_OPTIONS=--import=tsx CUELY_DEV_SERVER_URL=http://localhost:5173 electron ./electron/main.mjs\"",
-    "dev:native": "concurrently -k -n vite,electron \"vite\" \"wait-on tcp:5173 && cross-env NODE_OPTIONS=--import=tsx CUELY_DEV_SERVER_URL=http://localhost:5173 CUELY_DEFAULT_SOURCE=native electron ./electron/main.mjs\"",
+    "dev:electron": "concurrently -k -n vite,electron \"vite\" \"wait-on tcp:5173 && cross-env CUELY_DEV_SERVER_URL=http://localhost:5173 electron ./electron/main.mjs\"",
+    "dev:native": "concurrently -k -n vite,electron \"vite\" \"wait-on tcp:5173 && cross-env CUELY_DEV_SERVER_URL=http://localhost:5173 CUELY_DEFAULT_SOURCE=native electron ./electron/main.mjs\"",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
