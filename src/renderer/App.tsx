@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactElement } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ChangeEvent,
+  type ReactElement,
+} from "react";
 import { MockTranscriptSource } from "../sources/mock-source";
 import { createDemoScript, createDemoTranscript } from "../shared/demo-script";
 import type { CuelyBridge, HotkeyAction, ScriptPreset } from "../shared/bridge";
@@ -10,66 +18,74 @@ import {
   buildSourceSelection,
   type SourceSelection,
 } from "./source-selection";
+import "./app.css";
+
+function readDefaultSourceKind(): "mock" | "cloud" | "native" {
+  if (typeof window === "undefined") {
+    return "mock";
+  }
+  const value = new URLSearchParams(window.location.search).get("source");
+  if (value === "cloud" || value === "native" || value === "mock") {
+    return value;
+  }
+  return "mock";
+}
 
 function ThemeContainer({ model }: { model: PrompterViewModel }): ReactElement {
+  const current = model.currentCue;
+  const shellStyle: CSSProperties = {
+    transform: model.controls.mirrored ? "scaleX(-1)" : "none",
+  };
+  const cueCardStyle: CSSProperties = {
+    width: `${model.controls.widthPercent}%`,
+    fontSize: `${model.controls.fontSizePx}px`,
+    lineHeight: model.controls.lineHeight,
+  };
+  const nextCueStyle: CSSProperties = {
+    width: `${model.controls.widthPercent}%`,
+  };
+
   if (!model.visible) {
     return (
-      <main>
-        <h1>Cuely</h1>
-        <p>Prompter hidden. Use the visibility hotkey to re-open.</p>
+      <main
+        className={`cuely-shell ${model.controls.theme === "dark" ? "cuely-shell-dark" : "cuely-shell-light"}`}
+      >
+        <div className="cuely-hidden-panel">
+          <h1 className="cuely-app-title">Cuely</h1>
+          <p>Prompter hidden. Use the visibility hotkey to re-open.</p>
+        </div>
       </main>
     );
   }
 
-  const current = model.currentCue;
-  const mirrorTransform = model.controls.mirrored ? "scaleX(-1)" : "none";
-  const background = model.controls.theme === "dark" ? "#0e1117" : "#ffffff";
-  const foreground = model.controls.theme === "dark" ? "#f5f7fa" : "#111827";
-  const muted = model.controls.theme === "dark" ? "#9ca3af" : "#6b7280";
-
   return (
     <main
-      style={{
-        background,
-        color: foreground,
-        minHeight: "100vh",
-        padding: "2rem",
-        transform: mirrorTransform,
-      }}
+      className={`cuely-shell ${model.controls.theme === "dark" ? "cuely-shell-dark" : "cuely-shell-light"}`}
+      style={shellStyle}
     >
-      <header style={{ marginBottom: "1rem" }}>
-        <h1 style={{ margin: 0 }}>Cuely — {model.title}</h1>
-        <p style={{ color: muted, margin: "0.5rem 0" }}>
+      <header className="cuely-header">
+        <h1 className="cuely-app-title">Cuely — {model.title}</h1>
+        <p className="cuely-status-line">
           {model.progressLabel} · Following: {model.following ? "On" : "Off"} · Source:{" "}
           {model.sourceStatus.state}
         </p>
         {model.unsure ? (
-          <p style={{ color: "#f59e0b", margin: "0.4rem 0" }}>Unsure — holding current cue.</p>
+          <p className="cuely-warning">Unsure — holding current cue.</p>
         ) : null}
         {model.sourceStatus.state === "error" ? (
-          <p style={{ color: "#ef4444", margin: "0.4rem 0" }}>
+          <p className="cuely-error">
             Source error: {model.sourceStatus.message}. Voice following is unavailable; use manual controls.
           </p>
         ) : null}
       </header>
-      <section
-        style={{
-          width: `${model.controls.widthPercent}%`,
-          fontSize: `${model.controls.fontSizePx}px`,
-          lineHeight: model.controls.lineHeight,
-          border: `1px solid ${muted}`,
-          borderRadius: "12px",
-          padding: "1.2rem",
-          marginBottom: "1rem",
-        }}
-      >
+      <section className="cuely-current-cue-card" style={cueCardStyle}>
         <strong>Current cue</strong>
         <p>{current.text}</p>
-        {current.notes ? <p style={{ color: muted }}>{current.notes}</p> : null}
+        {current.notes ? <p className="cuely-notes">{current.notes}</p> : null}
       </section>
-      <section style={{ width: `${model.controls.widthPercent}%` }}>
+      <section className="cuely-next-cues" style={nextCueStyle}>
         <strong>Next cues</strong>
-        <ol style={{ color: muted }}>
+        <ol>
           {model.nextCues.map((cue) => (
             <li key={cue.id}>{cue.text}</li>
           ))}
@@ -141,12 +157,13 @@ function LocalDemoApp(): ReactElement {
 }
 
 function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
+  const initialSourceKind = useMemo(() => readDefaultSourceKind(), []);
   const [session, setSession] = useState<PrompterSession>(() => new PrompterSession(createDemoScript()));
   const [model, setModel] = useState<PrompterViewModel>(session.getViewModel());
   const [scriptPath, setScriptPath] = useState("scripts/q3-review.md");
   const [scriptPresets, setScriptPresets] = useState<ScriptPreset[]>([]);
   const [scriptStatus, setScriptStatus] = useState<string | null>(null);
-  const [sourceKind, setSourceKind] = useState<"mock" | "cloud" | "native">("mock");
+  const [sourceKind, setSourceKind] = useState<"mock" | "cloud" | "native">(initialSourceKind);
   const [cloudProvider, setCloudProvider] = useState<"deepgram" | "assemblyai">("deepgram");
   const [cloudApiKeyEnv, setCloudApiKeyEnv] = useState("DEEPGRAM_API_KEY");
   const [cloudLocale, setCloudLocale] = useState("en-US");
@@ -224,7 +241,7 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
         }
       });
 
-      await selectSourceKind("mock");
+      await selectSourceKind(initialSourceKind);
     })();
 
     return () => {
@@ -233,7 +250,7 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
       stopSourceStatus?.();
       stopHotkeys?.();
     };
-  }, [bridge]);
+  }, [bridge, initialSourceKind]);
 
   function onFontSizeChange(event: ChangeEvent<HTMLInputElement>): void {
     session.setControls({ fontSizePx: Number(event.target.value) });
@@ -325,12 +342,12 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
         onNext={() => trigger("next")}
         onToggleFollowing={() => trigger("toggle-following")}
       />
-      <div style={{ padding: "0 0.75rem 0.75rem 0.75rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+      <div className="cuely-toolbar cuely-script-toolbar">
         {scriptPresets.length > 0 ? (
           <select
+            className="cuely-select"
             value={scriptPath}
             onChange={(event) => setScriptPath(event.target.value)}
-            style={{ minWidth: "220px" }}
           >
             {scriptPresets.map((preset) => (
               <option key={preset.path} value={preset.path}>
@@ -340,30 +357,34 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
           </select>
         ) : null}
         <input
+          className="cuely-input cuely-script-path-input"
           type="text"
           value={scriptPath}
           onChange={(event) => setScriptPath(event.target.value)}
           placeholder="Path to cue script (.md or .json)"
-          style={{ minWidth: "320px" }}
         />
-        <button type="button" onClick={() => void loadScriptFromPath()}>
+        <button className="cuely-button" type="button" onClick={() => void loadScriptFromPath()}>
           Load Script
         </button>
-        {scriptStatus ? <span>{scriptStatus}</span> : null}
+        {scriptStatus ? <span className="cuely-toolbar-status">{scriptStatus}</span> : null}
       </div>
-      <div style={{ padding: "0 0.75rem 0.75rem 0.75rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+      <div className="cuely-toolbar cuely-source-toolbar">
         <label>
           Source
-          <select value={sourceKind} onChange={(event) => setSourceKind(event.target.value as "mock" | "cloud" | "native")}>
+          <select
+            className="cuely-select"
+            value={sourceKind}
+            onChange={(event) => setSourceKind(event.target.value as "mock" | "cloud" | "native")}
+          >
             <option value="mock">mock</option>
             <option value="cloud">cloud</option>
             <option value="native">native</option>
           </select>
         </label>
-        <button type="button" onClick={() => void selectSourceKind(sourceKind)}>
+        <button className="cuely-button" type="button" onClick={() => void selectSourceKind(sourceKind)}>
           Apply Source
         </button>
-        <button type="button" onClick={() => void retryActiveSource()}>
+        <button className="cuely-button cuely-button-secondary" type="button" onClick={() => void retryActiveSource()}>
           Retry Source
         </button>
         {sourceKind === "cloud" ? (
@@ -371,6 +392,7 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
             <label>
               Provider
               <select
+                className="cuely-select"
                 value={cloudProvider}
                 onChange={(event) => {
                   const nextProvider = event.target.value as "deepgram" | "assemblyai";
@@ -392,19 +414,19 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
             <label>
               API env
               <input
+                className="cuely-input"
                 type="text"
                 value={cloudApiKeyEnv}
                 onChange={(event) => setCloudApiKeyEnv(event.target.value)}
-                style={{ minWidth: "180px" }}
               />
             </label>
             <label>
               Locale
               <input
+                className="cuely-input cuely-locale-input"
                 type="text"
                 value={cloudLocale}
                 onChange={(event) => setCloudLocale(event.target.value)}
-                style={{ width: "90px" }}
               />
             </label>
             <label>
@@ -417,7 +439,7 @@ function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
             </label>
           </>
         ) : null}
-        {sourceActionStatus ? <span>{sourceActionStatus}</span> : null}
+        {sourceActionStatus ? <span className="cuely-toolbar-status">{sourceActionStatus}</span> : null}
       </div>
       <ThemeContainer model={model} />
     </>
@@ -450,32 +472,54 @@ function Controls(props: ControlsProps): ReactElement {
   } = props;
 
   return (
-    <div style={{ padding: "0.75rem", display: "flex", gap: "1rem", alignItems: "center" }}>
+    <div className="cuely-toolbar cuely-primary-toolbar">
       <label>
         Font
-        <input type="range" min={24} max={72} value={model.controls.fontSizePx} onChange={onFontSizeChange} />
+        <input
+          className="cuely-range"
+          type="range"
+          min={24}
+          max={72}
+          value={model.controls.fontSizePx}
+          onChange={onFontSizeChange}
+        />
       </label>
       <label>
         Line
-        <input type="range" min={1} max={2} step={0.05} value={model.controls.lineHeight} onChange={onLineHeightChange} />
+        <input
+          className="cuely-range"
+          type="range"
+          min={1}
+          max={2}
+          step={0.05}
+          value={model.controls.lineHeight}
+          onChange={onLineHeightChange}
+        />
       </label>
       <label>
         Width
-        <input type="range" min={45} max={95} value={model.controls.widthPercent} onChange={onWidthChange} />
+        <input
+          className="cuely-range"
+          type="range"
+          min={45}
+          max={95}
+          value={model.controls.widthPercent}
+          onChange={onWidthChange}
+        />
       </label>
-      <button type="button" onClick={onToggleTheme}>
+      <button className="cuely-button" type="button" onClick={onToggleTheme}>
         Theme
       </button>
-      <button type="button" onClick={onToggleMirror}>
+      <button className="cuely-button" type="button" onClick={onToggleMirror}>
         Mirror
       </button>
-      <button type="button" onClick={onPrev}>
+      <button className="cuely-button" type="button" onClick={onPrev}>
         Prev
       </button>
-      <button type="button" onClick={onNext}>
+      <button className="cuely-button" type="button" onClick={onNext}>
         Next
       </button>
-      <button type="button" onClick={onToggleFollowing}>
+      <button className="cuely-button cuely-button-accent" type="button" onClick={onToggleFollowing}>
         Toggle Following
       </button>
     </div>
