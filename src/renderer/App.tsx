@@ -1,527 +1,342 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ChangeEvent,
-  type ReactElement,
-} from "react";
-import { MockTranscriptSource } from "../sources/mock-source";
-import { createDemoScript, createDemoTranscript } from "../shared/demo-script";
-import type { CuelyBridge, HotkeyAction, ScriptPreset } from "../shared/bridge";
-import { getCuelyBridge } from "./bridge-client";
-import { PrompterSession, type PrompterViewModel } from "./prompter-session";
-import { loadScriptIntoSession } from "./script-loader";
-import {
-  applySourceSelection,
-  buildSourceSelection,
-  type SourceSelection,
-} from "./source-selection";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import "./app.css";
 
-function readDefaultSourceKind(): "mock" | "cloud" | "native" {
-  if (typeof window === "undefined") {
-    return "mock";
-  }
-  const value = new URLSearchParams(window.location.search).get("source");
-  if (value === "cloud" || value === "native" || value === "mock") {
-    return value;
-  }
-  return "mock";
+type SidebarTab = "add-cue" | "add-transcript" | "add-sentences";
+
+interface CueLine {
+  id: string;
+  text: string;
 }
 
-function ThemeContainer({ model }: { model: PrompterViewModel }): ReactElement {
-  const current = model.currentCue;
-  const shellStyle: CSSProperties = {
-    transform: model.controls.mirrored ? "scaleX(-1)" : "none",
-  };
-  const cueCardStyle: CSSProperties = {
-    width: `${model.controls.widthPercent}%`,
-    fontSize: `${model.controls.fontSizePx}px`,
-    lineHeight: model.controls.lineHeight,
-  };
-  const nextCueStyle: CSSProperties = {
-    width: `${model.controls.widthPercent}%`,
-  };
+let cueSequence = 0;
 
-  if (!model.visible) {
-    return (
-      <main
-        className={`cuely-shell ${model.controls.theme === "dark" ? "cuely-shell-dark" : "cuely-shell-light"}`}
-      >
-        <div className="cuely-hidden-panel">
-          <h1 className="cuely-app-title">Cuely</h1>
-          <p>Prompter hidden. Use the visibility hotkey to re-open.</p>
-        </div>
-      </main>
-    );
+function makeCue(text: string): CueLine {
+  cueSequence += 1;
+  return { id: `cue-${cueSequence}`, text };
+}
+
+function splitTranscriptIntoSentences(rawTranscript: string): string[] {
+  const cleaned = rawTranscript.replace(/\r\n/g, "\n").trim();
+  if (!cleaned) {
+    return [];
   }
-
-  return (
-    <main
-      className={`cuely-shell ${model.controls.theme === "dark" ? "cuely-shell-dark" : "cuely-shell-light"}`}
-      style={shellStyle}
-    >
-      <header className="cuely-header">
-        <h1 className="cuely-app-title">Cuely — {model.title}</h1>
-        <p className="cuely-status-line">
-          {model.progressLabel} · Following: {model.following ? "On" : "Off"} · Source:{" "}
-          {model.sourceStatus.state}
-        </p>
-        {model.unsure ? (
-          <p className="cuely-warning">Unsure — holding current cue.</p>
-        ) : null}
-        {model.sourceStatus.state === "error" ? (
-          <p className="cuely-error">
-            Source error: {model.sourceStatus.message}. Voice following is unavailable; use manual controls.
-          </p>
-        ) : null}
-      </header>
-      <section className="cuely-current-cue-card" style={cueCardStyle}>
-        <strong>Current cue</strong>
-        <p>{current.text}</p>
-        {current.notes ? <p className="cuely-notes">{current.notes}</p> : null}
-      </section>
-      <section className="cuely-next-cues" style={nextCueStyle}>
-        <strong>Next cues</strong>
-        <ol>
-          {model.nextCues.map((cue) => (
-            <li key={cue.id}>{cue.text}</li>
-          ))}
-        </ol>
-      </section>
-    </main>
-  );
+  const lines = cleaned.split("\n");
+  const sentences: string[] = [];
+  for (const line of lines) {
+    const fragments = line.match(/[^.!?]+[.!?]?/g) ?? [];
+    for (const fragment of fragments) {
+      const sentence = fragment.trim();
+      if (sentence.length > 0) {
+        sentences.push(sentence);
+      }
+    }
+  }
+  return sentences;
 }
 
 export function App(): ReactElement {
-  const bridge = useMemo(() => getCuelyBridge(), []);
-  if (bridge) {
-    return <BridgeDrivenApp bridge={bridge} />;
-  }
+  const [activeTab, setActiveTab] = useState<SidebarTab>("add-cue");
+  const [title, setTitle] = useState("Q3 Review");
+  const [sessionName, setSessionName] = useState("Demo Session");
+  const [transcriptInput, setTranscriptInput] = useState("");
+  const [newSentence, setNewSentence] = useState("");
+  const [statusMessage, setStatusMessage] = useState("Configure your cue flow, then press Play.");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [cues, setCues] = useState<CueLine[]>(() => [
+    makeCue("Open with the headline number."),
+    makeCue("Revenue up 18% QoQ."),
+    makeCue("Why it moved: enterprise renewals."),
+    makeCue("What we're asking for."),
+  ]);
 
-  return <LocalDemoApp />;
-}
+  const currentCue = cues[currentIndex] ?? null;
+  const nextCues = useMemo(() => cues.slice(currentIndex + 1, currentIndex + 4), [cues, currentIndex]);
 
-function LocalDemoApp(): ReactElement {
-  const session = useMemo(() => new PrompterSession(createDemoScript()), []);
-  const [model, setModel] = useState<PrompterViewModel>(session.getViewModel());
-
-  useEffect(() => {
-    const unsubscribe = session.onChange(setModel);
-    return () => unsubscribe();
-  }, [session]);
-
-  useEffect(() => {
-    const source = new MockTranscriptSource(createDemoTranscript(), { timeScale: 1.5 });
-    const stopChunk = source.onChunk((chunk) => session.pushTranscript(chunk));
-    const stopStatus = source.onStatus((status) => session.setSourceStatus(status));
-    void source.start();
-
-    return () => {
-      void source.stop();
-      stopChunk();
-      stopStatus();
-    };
-  }, [session]);
-
-  function onFontSizeChange(event: ChangeEvent<HTMLInputElement>): void {
-    session.setControls({ fontSizePx: Number(event.target.value) });
-  }
-
-  function onLineHeightChange(event: ChangeEvent<HTMLInputElement>): void {
-    session.setControls({ lineHeight: Number(event.target.value) });
-  }
-
-  function onWidthChange(event: ChangeEvent<HTMLInputElement>): void {
-    session.setControls({ widthPercent: Number(event.target.value) });
-  }
-
-  return (
-    <>
-      <Controls
-        model={model}
-        onFontSizeChange={onFontSizeChange}
-        onLineHeightChange={onLineHeightChange}
-        onWidthChange={onWidthChange}
-        onToggleTheme={() => session.setControls({ theme: model.controls.theme === "dark" ? "light" : "dark" })}
-        onToggleMirror={() => session.setControls({ mirrored: !model.controls.mirrored })}
-        onPrev={() => session.applyHotkey("prev")}
-        onNext={() => session.applyHotkey("next")}
-        onToggleFollowing={() => session.applyHotkey("toggle-following")}
-      />
-      <ThemeContainer model={model} />
-    </>
-  );
-}
-
-function BridgeDrivenApp({ bridge }: { bridge: CuelyBridge }): ReactElement {
-  const initialSourceKind = useMemo(() => readDefaultSourceKind(), []);
-  const [session, setSession] = useState<PrompterSession>(() => new PrompterSession(createDemoScript()));
-  const [model, setModel] = useState<PrompterViewModel>(session.getViewModel());
-  const [scriptPath, setScriptPath] = useState("scripts/q3-review.md");
-  const [scriptPresets, setScriptPresets] = useState<ScriptPreset[]>([]);
-  const [scriptStatus, setScriptStatus] = useState<string | null>(null);
-  const [sourceKind, setSourceKind] = useState<"mock" | "cloud" | "native">(initialSourceKind);
-  const [cloudProvider, setCloudProvider] = useState<"deepgram" | "assemblyai">("deepgram");
-  const [cloudApiKeyEnv, setCloudApiKeyEnv] = useState("DEEPGRAM_API_KEY");
-  const [cloudLocale, setCloudLocale] = useState("en-US");
-  const [cloudInterim, setCloudInterim] = useState(true);
-  const [sourceActionStatus, setSourceActionStatus] = useState<string | null>(null);
-  const [activeSourceSelection, setActiveSourceSelection] = useState<SourceSelection>({
-    kind: "mock",
-  });
-  const sessionRef = useRef(session);
-
-  useEffect(() => {
-    sessionRef.current = session;
-    const unsubscribe = session.onChange(setModel);
-    return () => unsubscribe();
-  }, [session]);
-
-  useEffect(() => {
-    let active = true;
-    let stopTrackerEvents: (() => void) | null = null;
-    let stopSourceStatus: (() => void) | null = null;
-    let stopHotkeys: (() => void) | null = null;
-
-    void (async () => {
-      let initialPresetPath: string | null = null;
-      try {
-        const presets = await bridge.listScriptPresets();
-        if (active) {
-          setScriptPresets(presets);
-          if (presets.length > 0) {
-            const firstPreset = presets[0];
-            if (firstPreset) {
-              setScriptPath(firstPreset.path);
-              initialPresetPath = firstPreset.path;
-            }
-          }
-        }
-      } catch (error) {
-        if (active) {
-          const message = error instanceof Error ? error.message : "Failed to list script presets.";
-          setScriptStatus(message);
-        }
+  function moveToNextCue(): void {
+    setCurrentIndex((prev) => {
+      if (cues.length === 0) {
+        return 0;
       }
+      return Math.min(prev + 1, cues.length - 1);
+    });
+  }
 
-      let script = createDemoScript();
-      try {
-        script = initialPresetPath
-          ? await bridge.loadScript(initialPresetPath)
-          : await bridge.loadScript();
-        if (active && initialPresetPath) {
-          setScriptStatus(`Loaded preset: ${initialPresetPath}`);
-        }
-      } catch (error) {
-        if (active) {
-          const message = error instanceof Error ? error.message : "Failed to load initial script.";
-          setScriptStatus(message);
-        }
-      }
-      if (!active) {
+  function moveToPreviousCue(): void {
+    setCurrentIndex((prev) => Math.max(prev - 1, 0));
+  }
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent): void {
+      if (!event.altKey) {
         return;
       }
-
-      const initialSession = new PrompterSession(script);
-      sessionRef.current = initialSession;
-      setSession(initialSession);
-
-      stopTrackerEvents = bridge.onTrackerEvent((event) => {
-        sessionRef.current.consumeTrackerEvent(event);
-      });
-      stopSourceStatus = bridge.onSourceStatus((status) => {
-        sessionRef.current.setSourceStatus(status);
-      });
-      stopHotkeys = bridge.onHotkey((action) => {
-        if (action === "toggle-following" || action === "toggle-visible") {
-          sessionRef.current.applyHotkey(action);
-        }
-      });
-
-      await selectSourceKind(initialSourceKind);
-    })();
-
-    return () => {
-      active = false;
-      stopTrackerEvents?.();
-      stopSourceStatus?.();
-      stopHotkeys?.();
-    };
-  }, [bridge, initialSourceKind]);
-
-  function onFontSizeChange(event: ChangeEvent<HTMLInputElement>): void {
-    session.setControls({ fontSizePx: Number(event.target.value) });
-  }
-
-  function onLineHeightChange(event: ChangeEvent<HTMLInputElement>): void {
-    session.setControls({ lineHeight: Number(event.target.value) });
-  }
-
-  function onWidthChange(event: ChangeEvent<HTMLInputElement>): void {
-    session.setControls({ widthPercent: Number(event.target.value) });
-  }
-
-  function trigger(action: HotkeyAction): void {
-    void bridge.triggerHotkey(action);
-  }
-
-  async function loadScriptFromPath(): Promise<void> {
-    const sourceSelection = buildSourceSelection(sourceKind, {
-      provider: cloudProvider,
-      apiKeyEnv: cloudApiKeyEnv.trim(),
-      locale: cloudLocale.trim(),
-      interim: cloudInterim,
-    });
-    const result = await loadScriptIntoSession({
-      bridge,
-      path: scriptPath.trim(),
-      sourceSelection,
-      currentSession: sessionRef.current,
-      demoChunks: createDemoTranscript(),
-    });
-    setScriptStatus(result.status);
-    if (result.success) {
-      setActiveSourceSelection(sourceSelection);
-      sessionRef.current = result.session;
-      setSession(result.session);
-      if (!result.sourceReady) {
-        setSourceActionStatus("Script loaded, but source start failed. Manual mode is active.");
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setCurrentIndex((prev) => {
+          if (cues.length === 0) {
+            return 0;
+          }
+          return Math.min(prev + 1, cues.length - 1);
+        });
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setCurrentIndex((prev) => Math.max(prev - 1, 0));
       }
     }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [cues.length]);
+
+  function appendSentences(sentences: string[]): void {
+    if (sentences.length === 0) {
+      setStatusMessage("No sentences found. Add content first.");
+      return;
+    }
+    const next = [...cues, ...sentences.map((sentence) => makeCue(sentence))];
+    setCues(next);
+    setStatusMessage(`Added ${sentences.length} sentence${sentences.length === 1 ? "" : "s"} to the cue list.`);
   }
 
-  async function selectSourceKind(kind: "mock" | "cloud" | "native"): Promise<void> {
-    setSourceKind(kind);
-    const sourceSelection = buildSourceSelection(kind, {
-      provider: cloudProvider,
-      apiKeyEnv: cloudApiKeyEnv.trim(),
-      locale: cloudLocale.trim(),
-      interim: cloudInterim,
+  function onUseTranscript(): void {
+    appendSentences(splitTranscriptIntoSentences(transcriptInput));
+    setTranscriptInput("");
+  }
+
+  function onAddSentence(): void {
+    const value = newSentence.trim();
+    if (!value) {
+      setStatusMessage("Type a sentence before adding.");
+      return;
+    }
+    appendSentences([value]);
+    setNewSentence("");
+  }
+
+  function onDeleteCue(index: number): void {
+    const next = cues.filter((_, cueIndex) => cueIndex !== index);
+    setCues(next);
+    setCurrentIndex((prev) => {
+      if (next.length === 0) {
+        return 0;
+      }
+      return Math.min(prev, next.length - 1);
     });
-    try {
-      await applySourceSelection({
-        bridge,
-        selection: sourceSelection,
-        demoChunks: createDemoTranscript(),
-      });
-      setActiveSourceSelection(sourceSelection);
-      setSourceActionStatus(`Source selected: ${kind}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to switch source.";
-      setSourceActionStatus(message);
+    setStatusMessage("Removed cue.");
+  }
+
+  function onMoveCue(index: number, direction: -1 | 1): void {
+    const swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= cues.length) {
+      return;
+    }
+    const next = [...cues];
+    const currentCueLine = next[index];
+    const swapCueLine = next[swapIndex];
+    if (!currentCueLine || !swapCueLine) {
+      return;
+    }
+    next[index] = swapCueLine;
+    next[swapIndex] = currentCueLine;
+    setCues(next);
+    if (currentIndex === index) {
+      setCurrentIndex(swapIndex);
+    } else if (currentIndex === swapIndex) {
+      setCurrentIndex(index);
     }
   }
 
-  async function retryActiveSource(): Promise<void> {
-    try {
-      await applySourceSelection({
-        bridge,
-        selection: activeSourceSelection,
-        demoChunks: createDemoTranscript(),
-      });
-      setSourceActionStatus(`Source retried: ${activeSourceSelection.kind}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to retry source.";
-      setSourceActionStatus(message);
-    }
+  function onClearQueue(): void {
+    setCues([]);
+    setCurrentIndex(0);
+    setIsPlaying(false);
+    setStatusMessage("Started a fresh cue list.");
   }
+
+  function onStartOrPause(): void {
+    if (cues.length === 0) {
+      setStatusMessage("Add at least one sentence before pressing Play.");
+      return;
+    }
+    setIsPlaying((prev) => !prev);
+    setStatusMessage(
+      isPlaying
+        ? "Playback paused. You can continue with Play."
+        : "Playback started. Use Option + Arrow keys for manual cue control.",
+    );
+  }
+
+  const progressLabel =
+    cues.length === 0 ? "No cues yet" : `Cue ${Math.min(currentIndex + 1, cues.length)} of ${cues.length}`;
 
   return (
-    <>
-      <Controls
-        model={model}
-        onFontSizeChange={onFontSizeChange}
-        onLineHeightChange={onLineHeightChange}
-        onWidthChange={onWidthChange}
-        onToggleTheme={() => session.setControls({ theme: model.controls.theme === "dark" ? "light" : "dark" })}
-        onToggleMirror={() => session.setControls({ mirrored: !model.controls.mirrored })}
-        onPrev={() => trigger("prev")}
-        onNext={() => trigger("next")}
-        onToggleFollowing={() => trigger("toggle-following")}
-      />
-      <div className="cuely-toolbar cuely-script-toolbar">
-        {scriptPresets.length > 0 ? (
-          <select
-            className="cuely-select"
-            value={scriptPath}
-            onChange={(event) => setScriptPath(event.target.value)}
+    <div className="mockup-app">
+      <aside className="mockup-sidebar">
+        <header className="mockup-branding">
+          <p className="mockup-branding-tag">Cuely</p>
+          <h1>Cue Builder</h1>
+          <p>Manual-first workflow for your first functional app mockup.</p>
+        </header>
+
+        <nav className="mockup-tabs" aria-label="Cue setup tabs">
+          <button
+            type="button"
+            className={activeTab === "add-cue" ? "mockup-tab active" : "mockup-tab"}
+            onClick={() => setActiveTab("add-cue")}
           >
-            {scriptPresets.map((preset) => (
-              <option key={preset.path} value={preset.path}>
-                {preset.label}
-              </option>
+            Add Cue
+          </button>
+          <button
+            type="button"
+            className={activeTab === "add-transcript" ? "mockup-tab active" : "mockup-tab"}
+            onClick={() => setActiveTab("add-transcript")}
+          >
+            Add Transcript
+          </button>
+          <button
+            type="button"
+            className={activeTab === "add-sentences" ? "mockup-tab active" : "mockup-tab"}
+            onClick={() => setActiveTab("add-sentences")}
+          >
+            Add Sentences
+          </button>
+        </nav>
+
+        <section className="mockup-side-panel">
+          {activeTab === "add-cue" ? (
+            <div className="mockup-panel-stack">
+              <label className="mockup-field">
+                Cue title
+                <input value={title} onChange={(event) => setTitle(event.target.value)} />
+              </label>
+              <label className="mockup-field">
+                Session
+                <input
+                  value={sessionName}
+                  onChange={(event) => setSessionName(event.target.value)}
+                  placeholder="Morning rehearsal"
+                />
+              </label>
+              <button className="mockup-button ghost" type="button" onClick={onClearQueue}>
+                Start Fresh Cue List
+              </button>
+            </div>
+          ) : null}
+
+          {activeTab === "add-transcript" ? (
+            <div className="mockup-panel-stack">
+              <label className="mockup-field">
+                Paste transcript
+                <textarea
+                  value={transcriptInput}
+                  onChange={(event) => setTranscriptInput(event.target.value)}
+                  placeholder="Paste paragraphs here. We split them into sentence cues."
+                  rows={8}
+                />
+              </label>
+              <button className="mockup-button" type="button" onClick={onUseTranscript}>
+                Convert Transcript to Sentences
+              </button>
+            </div>
+          ) : null}
+
+          {activeTab === "add-sentences" ? (
+            <div className="mockup-panel-stack">
+              <label className="mockup-field">
+                Sentence
+                <textarea
+                  value={newSentence}
+                  onChange={(event) => setNewSentence(event.target.value)}
+                  placeholder="Type one sentence cue."
+                  rows={3}
+                />
+              </label>
+              <button className="mockup-button" type="button" onClick={onAddSentence}>
+                Add Sentence
+              </button>
+            </div>
+          ) : null}
+        </section>
+
+        <footer className="mockup-sidebar-footer">
+          <p>Manual navigation: Option + Right / Option + Left</p>
+        </footer>
+      </aside>
+
+      <main className="mockup-main">
+        <header className="mockup-main-header">
+          <div>
+            <p className="mockup-kicker">Cue session</p>
+            <h2>{title || "Untitled Cue Session"}</h2>
+            <p className="mockup-subline">
+              {sessionName || "Untitled Session"} · {progressLabel}
+            </p>
+          </div>
+          <div className="mockup-actions">
+            <button className="mockup-button ghost" type="button" onClick={moveToPreviousCue}>
+              Previous
+            </button>
+            <button className="mockup-button ghost" type="button" onClick={moveToNextCue}>
+              Next
+            </button>
+            <button className="mockup-button" type="button" onClick={onStartOrPause}>
+              {isPlaying ? "Pause" : "Play"}
+            </button>
+          </div>
+        </header>
+
+        <p className="mockup-status">{statusMessage}</p>
+
+        <section className="mockup-stage">
+          <p className="mockup-stage-kicker">Current cue</p>
+          {isPlaying && currentCue ? (
+            <h3>{currentCue.text}</h3>
+          ) : (
+            <h3 className="muted">Press Play to start cue tracking.</h3>
+          )}
+        </section>
+
+        <section className="mockup-next">
+          <p className="mockup-next-title">Next sentences</p>
+          {nextCues.length > 0 ? (
+            <ol>
+              {nextCues.map((cue) => (
+                <li key={cue.id}>{cue.text}</li>
+              ))}
+            </ol>
+          ) : (
+            <p className="muted">No upcoming sentences yet.</p>
+          )}
+        </section>
+
+        <section className="mockup-queue">
+          <div className="mockup-queue-header">
+            <h4>Cue queue</h4>
+            <p>{cues.length} sentence(s)</p>
+          </div>
+          <ol>
+            {cues.map((cue, index) => (
+              <li key={cue.id} className={index === currentIndex ? "active" : ""}>
+                <button type="button" className="mockup-cue-text" onClick={() => setCurrentIndex(index)}>
+                  {cue.text}
+                </button>
+                <div className="mockup-cue-controls">
+                  <button type="button" onClick={() => onMoveCue(index, -1)} aria-label="Move cue up">
+                    ↑
+                  </button>
+                  <button type="button" onClick={() => onMoveCue(index, 1)} aria-label="Move cue down">
+                    ↓
+                  </button>
+                  <button type="button" onClick={() => onDeleteCue(index)} aria-label="Delete cue">
+                    ✕
+                  </button>
+                </div>
+              </li>
             ))}
-          </select>
-        ) : null}
-        <input
-          className="cuely-input cuely-script-path-input"
-          type="text"
-          value={scriptPath}
-          onChange={(event) => setScriptPath(event.target.value)}
-          placeholder="Path to cue script (.md or .json)"
-        />
-        <button className="cuely-button" type="button" onClick={() => void loadScriptFromPath()}>
-          Load Script
-        </button>
-        {scriptStatus ? <span className="cuely-toolbar-status">{scriptStatus}</span> : null}
-      </div>
-      <div className="cuely-toolbar cuely-source-toolbar">
-        <label>
-          Source
-          <select
-            className="cuely-select"
-            value={sourceKind}
-            onChange={(event) => setSourceKind(event.target.value as "mock" | "cloud" | "native")}
-          >
-            <option value="mock">mock</option>
-            <option value="cloud">cloud</option>
-            <option value="native">native</option>
-          </select>
-        </label>
-        <button className="cuely-button" type="button" onClick={() => void selectSourceKind(sourceKind)}>
-          Apply Source
-        </button>
-        <button className="cuely-button cuely-button-secondary" type="button" onClick={() => void retryActiveSource()}>
-          Retry Source
-        </button>
-        {sourceKind === "cloud" ? (
-          <>
-            <label>
-              Provider
-              <select
-                className="cuely-select"
-                value={cloudProvider}
-                onChange={(event) => {
-                  const nextProvider = event.target.value as "deepgram" | "assemblyai";
-                  setCloudProvider(nextProvider);
-                  const defaultEnv =
-                    nextProvider === "assemblyai" ? "ASSEMBLYAI_API_KEY" : "DEEPGRAM_API_KEY";
-                  if (
-                    cloudApiKeyEnv === "DEEPGRAM_API_KEY" ||
-                    cloudApiKeyEnv === "ASSEMBLYAI_API_KEY"
-                  ) {
-                    setCloudApiKeyEnv(defaultEnv);
-                  }
-                }}
-              >
-                <option value="deepgram">deepgram</option>
-                <option value="assemblyai">assemblyai</option>
-              </select>
-            </label>
-            <label>
-              API env
-              <input
-                className="cuely-input"
-                type="text"
-                value={cloudApiKeyEnv}
-                onChange={(event) => setCloudApiKeyEnv(event.target.value)}
-              />
-            </label>
-            <label>
-              Locale
-              <input
-                className="cuely-input cuely-locale-input"
-                type="text"
-                value={cloudLocale}
-                onChange={(event) => setCloudLocale(event.target.value)}
-              />
-            </label>
-            <label>
-              Interim
-              <input
-                type="checkbox"
-                checked={cloudInterim}
-                onChange={(event) => setCloudInterim(event.target.checked)}
-              />
-            </label>
-          </>
-        ) : null}
-        {sourceActionStatus ? <span className="cuely-toolbar-status">{sourceActionStatus}</span> : null}
-      </div>
-      <ThemeContainer model={model} />
-    </>
-  );
-}
-
-interface ControlsProps {
-  model: PrompterViewModel;
-  onFontSizeChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onLineHeightChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onWidthChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onToggleTheme: () => void;
-  onToggleMirror: () => void;
-  onPrev: () => void;
-  onNext: () => void;
-  onToggleFollowing: () => void;
-}
-
-function Controls(props: ControlsProps): ReactElement {
-  const {
-    model,
-    onFontSizeChange,
-    onLineHeightChange,
-    onWidthChange,
-    onToggleTheme,
-    onToggleMirror,
-    onPrev,
-    onNext,
-    onToggleFollowing,
-  } = props;
-
-  return (
-    <div className="cuely-toolbar cuely-primary-toolbar">
-      <label>
-        Font
-        <input
-          className="cuely-range"
-          type="range"
-          min={24}
-          max={72}
-          value={model.controls.fontSizePx}
-          onChange={onFontSizeChange}
-        />
-      </label>
-      <label>
-        Line
-        <input
-          className="cuely-range"
-          type="range"
-          min={1}
-          max={2}
-          step={0.05}
-          value={model.controls.lineHeight}
-          onChange={onLineHeightChange}
-        />
-      </label>
-      <label>
-        Width
-        <input
-          className="cuely-range"
-          type="range"
-          min={45}
-          max={95}
-          value={model.controls.widthPercent}
-          onChange={onWidthChange}
-        />
-      </label>
-      <button className="cuely-button" type="button" onClick={onToggleTheme}>
-        Theme
-      </button>
-      <button className="cuely-button" type="button" onClick={onToggleMirror}>
-        Mirror
-      </button>
-      <button className="cuely-button" type="button" onClick={onPrev}>
-        Prev
-      </button>
-      <button className="cuely-button" type="button" onClick={onNext}>
-        Next
-      </button>
-      <button className="cuely-button cuely-button-accent" type="button" onClick={onToggleFollowing}>
-        Toggle Following
-      </button>
+          </ol>
+        </section>
+      </main>
     </div>
   );
 }

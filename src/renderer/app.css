@@ -17,208 +17,293 @@ body,
 }
 
 body {
+  color: #f6f7fb;
   background:
-    radial-gradient(1200px 500px at 10% -20%, rgba(90, 130, 220, 0.38), transparent),
-    radial-gradient(900px 400px at 90% -15%, rgba(110, 80, 220, 0.28), transparent),
-    #0b0f17;
-  color: #f7f8fa;
+    radial-gradient(1000px 500px at 0% -20%, rgba(99, 116, 255, 0.34), transparent),
+    radial-gradient(900px 450px at 95% -10%, rgba(54, 190, 255, 0.24), transparent),
+    #050915;
 }
 
-.cuely-shell {
+.mockup-app {
   min-height: 100vh;
-  padding: 24px;
-  transition: background 160ms ease, color 160ms ease;
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px;
 }
 
-.cuely-shell-dark {
-  color: #f7f8fa;
+.mockup-sidebar,
+.mockup-main {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  backdrop-filter: blur(20px) saturate(150%);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03));
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
 }
 
-.cuely-shell-light {
-  color: #111827;
-  background:
-    radial-gradient(1200px 500px at 10% -20%, rgba(186, 215, 255, 0.74), transparent),
-    radial-gradient(900px 400px at 90% -15%, rgba(215, 199, 255, 0.55), transparent),
-    #f8f9fc;
+.mockup-sidebar {
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
 }
 
-.cuely-header {
-  margin-bottom: 16px;
-}
-
-.cuely-app-title {
+.mockup-branding-tag {
   margin: 0;
-  font-size: 42px;
-  font-weight: 640;
+  opacity: 0.72;
+  font-size: 12px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.mockup-branding h1 {
+  margin: 8px 0 4px;
+  font-size: 32px;
   letter-spacing: -0.02em;
 }
 
-.cuely-status-line {
-  margin: 10px 0 0;
-  opacity: 0.75;
-  font-size: 14px;
-}
-
-.cuely-warning,
-.cuely-error {
-  margin: 8px 0 0;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.cuely-warning {
-  color: #f8c256;
-}
-
-.cuely-error {
-  color: #ff7b77;
-}
-
-.cuely-current-cue-card {
-  margin-bottom: 18px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  padding: 20px 22px;
-  backdrop-filter: blur(20px) saturate(150%);
-  background: linear-gradient(
-    160deg,
-    rgba(255, 255, 255, 0.15),
-    rgba(255, 255, 255, 0.03)
-  );
-  box-shadow:
-    0 10px 32px rgba(0, 0, 0, 0.28),
-    inset 0 1px 1px rgba(255, 255, 255, 0.22);
-}
-
-.cuely-current-cue-card strong {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 0.76em;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.75;
-}
-
-.cuely-current-cue-card p {
+.mockup-branding p {
   margin: 0;
+  color: rgba(246, 247, 251, 0.74);
+  line-height: 1.4;
 }
 
-.cuely-notes {
-  margin-top: 12px !important;
-  opacity: 0.7;
-  font-size: 0.8em;
-}
-
-.cuely-next-cues strong {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.65;
-}
-
-.cuely-next-cues ol {
-  margin: 0;
-  padding-left: 20px;
-  opacity: 0.75;
-}
-
-.cuely-toolbar {
-  display: flex;
+.mockup-tabs {
+  margin-top: 18px;
+  display: grid;
   gap: 8px;
-  align-items: center;
-  padding: 8px 10px;
-  margin: 0 0 10px;
-  border-radius: 12px;
-  backdrop-filter: blur(12px) saturate(150%);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
-.cuely-shell-light .cuely-toolbar {
-  background: rgba(255, 255, 255, 0.68);
-  border-color: rgba(17, 24, 39, 0.1);
-}
-
-.cuely-toolbar label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 550;
-  opacity: 0.9;
-}
-
-.cuely-range {
-  accent-color: #0a84ff;
-}
-
-.cuely-input,
-.cuely-select {
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 9px;
-  padding: 7px 10px;
-  min-height: 32px;
-  background: rgba(18, 22, 32, 0.55);
+.mockup-tab {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  min-height: 38px;
+  text-align: left;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 600;
   color: inherit;
-  font-size: 13px;
-}
-
-.cuely-shell-light .cuely-input,
-.cuely-shell-light .cuely-select {
-  border-color: rgba(17, 24, 39, 0.18);
-  background: rgba(255, 255, 255, 0.86);
-}
-
-.cuely-script-path-input {
-  min-width: 320px;
-}
-
-.cuely-locale-input {
-  width: 90px;
-}
-
-.cuely-button {
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 9px;
-  padding: 7px 12px;
-  background: rgba(255, 255, 255, 0.14);
-  color: inherit;
-  font-size: 13px;
-  font-weight: 560;
+  background: rgba(255, 255, 255, 0.08);
   cursor: pointer;
 }
 
-.cuely-shell-light .cuely-button {
-  border-color: rgba(17, 24, 39, 0.18);
-  background: rgba(255, 255, 255, 0.8);
+.mockup-tab.active {
+  border-color: rgba(73, 160, 255, 0.6);
+  background: linear-gradient(180deg, rgba(40, 140, 255, 0.35), rgba(40, 140, 255, 0.2));
 }
 
-.cuely-button:hover {
-  filter: brightness(1.08);
+.mockup-side-panel {
+  margin-top: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(5, 10, 22, 0.45);
+  padding: 12px;
 }
 
-.cuely-button-accent {
-  background: linear-gradient(180deg, #2a9cff, #0a84ff);
-  border-color: rgba(10, 132, 255, 0.9);
-  color: #f8fcff;
+.mockup-panel-stack {
+  display: grid;
+  gap: 10px;
 }
 
-.cuely-button-secondary {
+.mockup-field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.mockup-field input,
+.mockup-field textarea {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 10px 11px;
+  color: inherit;
   background: rgba(255, 255, 255, 0.08);
+  font-size: 14px;
 }
 
-.cuely-toolbar-status {
+.mockup-field textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.mockup-button {
+  border: 1px solid rgba(10, 132, 255, 0.9);
+  border-radius: 10px;
+  min-height: 38px;
+  padding: 0 13px;
+  color: #f9fbff;
+  background: linear-gradient(180deg, #2f98ff, #0a84ff);
+  font-size: 13px;
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.mockup-button.ghost {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.mockup-sidebar-footer {
+  margin-top: auto;
   font-size: 12px;
-  opacity: 0.85;
+  color: rgba(246, 247, 251, 0.68);
 }
 
-.cuely-hidden-panel {
-  max-width: 560px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  padding: 22px;
+.mockup-main {
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.mockup-main-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.mockup-kicker {
+  margin: 0;
+  opacity: 0.7;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.mockup-main-header h2 {
+  margin: 6px 0;
+  font-size: 44px;
+  letter-spacing: -0.03em;
+}
+
+.mockup-subline {
+  margin: 0;
+  color: rgba(246, 247, 251, 0.73);
+}
+
+.mockup-actions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.mockup-status {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(198, 224, 255, 0.92);
+}
+
+.mockup-stage {
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02));
+  padding: 24px;
+  min-height: 230px;
+}
+
+.mockup-stage-kicker,
+.mockup-next-title {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.mockup-stage h3 {
+  margin: 12px 0 0;
+  font-size: 56px;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.mockup-next {
+  padding: 4px 0;
+}
+
+.mockup-next ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: rgba(246, 247, 251, 0.86);
+}
+
+.muted {
+  color: rgba(246, 247, 251, 0.56);
+}
+
+.mockup-queue {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(5, 10, 22, 0.45);
+  padding: 12px;
+}
+
+.mockup-queue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.mockup-queue-header h4 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.mockup-queue-header p {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.mockup-queue ol {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.mockup-queue li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 10px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mockup-queue li.active {
+  border-color: rgba(73, 160, 255, 0.62);
+  background: rgba(73, 160, 255, 0.18);
+}
+
+.mockup-cue-text {
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  width: 100%;
+  font-size: 14px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.mockup-cue-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.mockup-cue-controls button {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  width: 30px;
+  height: 30px;
   background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(14px);
+  color: inherit;
+  cursor: pointer;
 }
