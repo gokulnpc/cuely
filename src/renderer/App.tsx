@@ -10,6 +10,7 @@ import { CueOverlayPanel } from "./CueOverlayPanel";
 import { KEYBIND_ROWS, defaultKeyBinds, keyBindFromEvent, matchesKeyBind } from "./cuely-keybinds";
 import { getCuelyShell } from "./cuely-shell";
 import { DEFAULT_CUES, PRESET_BUTTONS, PRESETS } from "./cuely-presets";
+import { splitTranscriptIntoSentences } from "./transcript-utils";
 import type { OverlayAction, OverlayPresentState } from "../shared/overlay-protocol";
 import type {
   AppView,
@@ -22,6 +23,7 @@ import type {
 } from "./cuely-types";
 
 let cueSequence = 100;
+type ComposerMode = "add-cue" | "add-transcript" | "add-sentences";
 
 function newCueId(): string {
   cueSequence += 1;
@@ -55,6 +57,7 @@ export function App(): ReactElement {
   const panelRef = useRef<HTMLDivElement>(null);
 
   const [view, setView] = useState<AppView>("script");
+  const [composerMode, setComposerMode] = useState<ComposerMode>("add-cue");
   const [theme, setTheme] = useState<Theme>("dark");
   const [title, setTitle] = useState("Q3 Board Review");
   const [session, setSession] = useState("Investor sync");
@@ -74,6 +77,9 @@ export function App(): ReactElement {
   const [draftText, setDraftText] = useState("");
   const [draftKeywords, setDraftKeywords] = useState("");
   const [draftNotes, setDraftNotes] = useState("");
+  const [transcriptDraft, setTranscriptDraft] = useState("");
+  const [sentencesDraft, setSentencesDraft] = useState("");
+  const [composerNotice, setComposerNotice] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBuffer, setEditBuffer] = useState("");
   const [cues, setCues] = useState<Cue[]>(DEFAULT_CUES);
@@ -226,19 +232,73 @@ export function App(): ReactElement {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [keybinds, nextCue, presenting, prevCue, recordingBind, shell, stopPresenting]);
 
+  function appendCues(items: Omit<Cue, "id">[]): void {
+    if (items.length === 0) {
+      return;
+    }
+    setCues((prev) => [
+      ...prev,
+      ...items.map((item) => ({
+        ...item,
+        id: newCueId(),
+      })),
+    ]);
+  }
+
   function addCue(): void {
     const text = draftText.trim();
-    if (!text) return;
-    const cue: Cue = {
-      id: newCueId(),
-      text,
-      keywords: parseKeywords(draftKeywords),
-      notes: draftNotes.trim(),
-    };
-    setCues((prev) => [...prev, cue]);
+    if (!text) {
+      setComposerNotice("Type a cue before adding.");
+      return;
+    }
+    appendCues([
+      {
+        text,
+        keywords: parseKeywords(draftKeywords),
+        notes: draftNotes.trim(),
+      },
+    ]);
     setDraftText("");
     setDraftKeywords("");
     setDraftNotes("");
+    setComposerNotice("Added one cue.");
+  }
+
+  function addTranscriptAsCues(): void {
+    const sentences = splitTranscriptIntoSentences(transcriptDraft);
+    if (sentences.length === 0) {
+      setComposerNotice("No sentence-sized cues found in transcript.");
+      return;
+    }
+    appendCues(
+      sentences.map((sentence) => ({
+        text: sentence,
+        keywords: [],
+        notes: "",
+      })),
+    );
+    setTranscriptDraft("");
+    setComposerNotice(`Added ${sentences.length} cues from transcript.`);
+  }
+
+  function addSentenceBatch(): void {
+    const entries = sentencesDraft
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    if (entries.length === 0) {
+      setComposerNotice("Add at least one sentence.");
+      return;
+    }
+    appendCues(
+      entries.map((sentence) => ({
+        text: sentence,
+        keywords: [],
+        notes: "",
+      })),
+    );
+    setSentencesDraft("");
+    setComposerNotice(`Added ${entries.length} sentence cue${entries.length === 1 ? "" : "s"}.`);
   }
 
   function deleteCue(id: string): void {
@@ -305,6 +365,7 @@ export function App(): ReactElement {
     setCurrentIndex(0);
     setTitle(preset.title);
     setSession(preset.session);
+    setComposerNotice(`Loaded preset: ${preset.title}`);
     setView("script");
   }
 
@@ -376,7 +437,15 @@ export function App(): ReactElement {
                   </p>
                 </div>
                 <div className="cuely-script-actions">
-                  <button type="button" className="cuely-button ghost" onClick={() => { setCues([]); setCurrentIndex(0); }}>
+                  <button
+                    type="button"
+                    className="cuely-button ghost"
+                    onClick={() => {
+                      setCues([]);
+                      setCurrentIndex(0);
+                      setComposerNotice("Cleared all cues.");
+                    }}
+                  >
                     Clear all
                   </button>
                   <button type="button" className="cuely-button" onClick={startPresenting}>
@@ -389,27 +458,91 @@ export function App(): ReactElement {
               <div className="cuely-script-body">
                 <aside className="cuely-composer">
                   <div className="cuely-card">
-                    <p className="cuely-meta">Add a cue</p>
-                    <textarea
-                      value={draftText}
-                      onChange={(e) => setDraftText(e.target.value)}
-                      placeholder="A talking point — say it your own way."
-                      rows={3}
-                    />
-                    <input
-                      value={draftKeywords}
-                      onChange={(e) => setDraftKeywords(e.target.value)}
-                      placeholder="keywords, comma, separated"
-                      className="cuely-input-mono"
-                    />
-                    <input
-                      value={draftNotes}
-                      onChange={(e) => setDraftNotes(e.target.value)}
-                      placeholder="sub-note (optional)"
-                    />
-                    <button type="button" className="cuely-button full" onClick={addCue}>
-                      Add cue
-                    </button>
+                    <p className="cuely-meta">Composer</p>
+                    <div className="cuely-composer-tabs" role="tablist" aria-label="Cue composer mode">
+                      <button
+                        type="button"
+                        role="tab"
+                        className={composerMode === "add-cue" ? "active" : ""}
+                        onClick={() => setComposerMode("add-cue")}
+                        aria-selected={composerMode === "add-cue"}
+                      >
+                        Add Cue
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        className={composerMode === "add-transcript" ? "active" : ""}
+                        onClick={() => setComposerMode("add-transcript")}
+                        aria-selected={composerMode === "add-transcript"}
+                      >
+                        Add Transcript
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        className={composerMode === "add-sentences" ? "active" : ""}
+                        onClick={() => setComposerMode("add-sentences")}
+                        aria-selected={composerMode === "add-sentences"}
+                      >
+                        Add Sentences
+                      </button>
+                    </div>
+
+                    {composerMode === "add-cue" ? (
+                      <div className="cuely-composer-pane">
+                        <textarea
+                          value={draftText}
+                          onChange={(e) => setDraftText(e.target.value)}
+                          placeholder="A talking point — say it your own way."
+                          rows={3}
+                        />
+                        <input
+                          value={draftKeywords}
+                          onChange={(e) => setDraftKeywords(e.target.value)}
+                          placeholder="keywords, comma, separated"
+                          className="cuely-input-mono"
+                        />
+                        <input
+                          value={draftNotes}
+                          onChange={(e) => setDraftNotes(e.target.value)}
+                          placeholder="sub-note (optional)"
+                        />
+                        <button type="button" className="cuely-button full" onClick={addCue}>
+                          Add cue
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {composerMode === "add-transcript" ? (
+                      <div className="cuely-composer-pane">
+                        <textarea
+                          value={transcriptDraft}
+                          onChange={(e) => setTranscriptDraft(e.target.value)}
+                          placeholder="Paste a transcript. We'll split it into sentence cues."
+                          rows={6}
+                        />
+                        <button type="button" className="cuely-button full" onClick={addTranscriptAsCues}>
+                          Convert transcript to cues
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {composerMode === "add-sentences" ? (
+                      <div className="cuely-composer-pane">
+                        <textarea
+                          value={sentencesDraft}
+                          onChange={(e) => setSentencesDraft(e.target.value)}
+                          placeholder="One sentence per line."
+                          rows={6}
+                        />
+                        <button type="button" className="cuely-button full" onClick={addSentenceBatch}>
+                          Add sentence cues
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {composerNotice ? <p className="cuely-composer-notice">{composerNotice}</p> : null}
                   </div>
 
                   <div className="cuely-card">
