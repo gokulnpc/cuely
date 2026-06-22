@@ -1,3 +1,46 @@
+:root {
+  --ink: #0d0e11;
+  --surface: #15171c;
+  --surface-2: #1c1f26;
+  --surface-3: #242832;
+  --line: #2b303b;
+  --line-strong: #3a4150;
+  --text: #eef1f5;
+  --text-2: #a6aebd;
+  --text-3: #6e7686;
+  --accent: #4fe3c1;
+  --accent-ink: #06150f;
+  --accent-soft: rgba(79, 227, 193, 0.13);
+  --accent-bd: rgba(79, 227, 193, 0.32);
+  --amber: #f4b650;
+  --amber-soft: rgba(244, 182, 80, 0.13);
+  --amber-bd: rgba(244, 182, 80, 0.32);
+  --danger: #f2667c;
+  --sans: "Hanken Grotesk", system-ui, sans-serif;
+  --display: "Bricolage Grotesque", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+[data-theme="light"] {
+  --ink: #eef0f3;
+  --surface: #ffffff;
+  --surface-2: #f2f4f7;
+  --surface-3: #e7ebf0;
+  --line: #e2e6ec;
+  --line-strong: #cfd5de;
+  --text: #14161a;
+  --text-2: #5a6172;
+  --text-3: #8a93a2;
+  --accent: #10a88e;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(16, 168, 142, 0.12);
+  --accent-bd: rgba(16, 168, 142, 0.34);
+  --amber: #b97e12;
+  --amber-soft: rgba(185, 126, 18, 0.12);
+  --amber-bd: rgba(185, 126, 18, 0.32);
+  --danger: #d8425c;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -6,304 +49,1053 @@ html,
 body,
 #root {
   margin: 0;
-  min-height: 100%;
-  font-family:
-    "SF Pro Display",
-    "SF Pro Text",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
-  color: #f6f7fb;
-  background:
-    radial-gradient(1000px 500px at 0% -20%, rgba(99, 116, 255, 0.34), transparent),
-    radial-gradient(900px 450px at 95% -10%, rgba(54, 190, 255, 0.24), transparent),
-    #050915;
+  color: var(--text);
+  background: var(--ink);
 }
 
-.mockup-app {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 330px minmax(0, 1fr);
-  gap: 18px;
-  padding: 18px;
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 
-.mockup-sidebar,
-.mockup-main {
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 18px;
-  backdrop-filter: blur(20px) saturate(150%);
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03));
-  box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.35),
-    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
-.mockup-sidebar {
+@keyframes cuely-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.cuely-shell {
+  height: 100%;
+  background: var(--ink);
+}
+
+.cuely-shell-live {
+  background: transparent;
+}
+
+html.cuely-presenting,
+html.cuely-presenting body,
+html.cuely-presenting #root {
+  background: transparent !important;
+}
+
+.cuely-window {
+  width: 100%;
+  height: 100%;
+  background: var(--ink);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: 18px;
+  color: var(--text);
 }
 
-.mockup-branding-tag {
-  margin: 0;
-  opacity: 0.72;
+.cuely-titlebar {
+  height: 46px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.cuely-electron .cuely-titlebar {
+  padding-left: 78px;
+  -webkit-app-region: drag;
+}
+
+.cuely-electron .cuely-titlebar-brand,
+.cuely-electron .cuely-status-pill {
+  -webkit-app-region: no-drag;
+}
+
+.cuely-traffic {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cuely-traffic.small {
+  gap: 7px;
+}
+
+.cuely-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.cuely-traffic.small .cuely-dot {
+  width: 11px;
+  height: 11px;
+}
+
+.cuely-dot.red {
+  background: #ed6a5e;
+}
+
+.cuely-dot.yellow {
+  background: #f4be4f;
+}
+
+.cuely-dot.green {
+  background: #61c554;
+}
+
+.cuely-titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.cuely-titlebar-name {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.cuely-titlebar-center {
+  flex: 1;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-3);
+  font-family: var(--mono);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cuely-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 12px;
-  letter-spacing: 0.13em;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+
+.cuely-status-pill.live {
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.cuely-status-pill .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.cuely-status-pill.live .dot {
+  background: var(--accent);
+  animation: cuely-pulse 1.8s ease-in-out infinite;
+}
+
+.cuely-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.cuely-rail {
+  width: 78px;
+  flex: none;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 0;
+  gap: 6px;
+}
+
+.cuely-rail-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 58px;
+  padding: 10px 0;
+  border-radius: 13px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 10px;
+  transition: background 0.12s;
+}
+
+.cuely-rail-btn.active {
+  border-color: var(--line);
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.cuely-rail-spacer {
+  flex: 1;
+}
+
+.cuely-rail-go {
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(79, 227, 193, 0.25);
+}
+
+.cuely-meta {
+  margin: 0 0 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
+  color: var(--text-3);
 }
 
-.mockup-branding h1 {
-  margin: 8px 0 4px;
-  font-size: 32px;
-  letter-spacing: -0.02em;
+.cuely-meta.wide {
+  letter-spacing: 0.2em;
+  margin-bottom: 6px;
 }
 
-.mockup-branding p {
-  margin: 0;
-  color: rgba(246, 247, 251, 0.74);
-  line-height: 1.4;
-}
-
-.mockup-tabs {
-  margin-top: 18px;
-  display: grid;
+.cuely-button {
+  border: none;
+  border-radius: 10px;
+  min-height: 38px;
+  padding: 0 18px;
+  color: var(--accent-ink);
+  background: var(--accent);
+  font-family: var(--sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
 }
 
-.mockup-tab {
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 10px;
-  min-height: 38px;
-  text-align: left;
-  padding: 0 12px;
-  font-size: 14px;
-  font-weight: 600;
-  color: inherit;
-  background: rgba(255, 255, 255, 0.08);
-  cursor: pointer;
+.cuely-button.ghost {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 500;
 }
 
-.mockup-tab.active {
-  border-color: rgba(73, 160, 255, 0.6);
-  background: linear-gradient(180deg, rgba(40, 140, 255, 0.35), rgba(40, 140, 255, 0.2));
-}
-
-.mockup-side-panel {
+.cuely-button.full {
+  width: 100%;
   margin-top: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(5, 10, 22, 0.45);
-  padding: 12px;
+  justify-content: center;
+  font-size: 14px;
+  border-radius: 11px;
+  padding: 11px;
 }
 
-.mockup-panel-stack {
-  display: grid;
+.cuely-button.small {
+  min-height: 32px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  border-radius: 8px;
+}
+
+.cuely-go-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-ink);
+}
+
+.cuely-script {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cuely-script-header {
+  padding: 26px 30px 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.cuely-script-header h1 {
+  margin: 6px 0 2px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 30px;
+  letter-spacing: -0.015em;
+}
+
+.cuely-script-sub {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+
+.cuely-script-actions {
+  display: flex;
   gap: 10px;
 }
 
-.mockup-field {
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 560;
+.cuely-script-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 24px;
+  padding: 22px 30px 28px;
 }
 
-.mockup-field input,
-.mockup-field textarea {
+.cuely-composer {
+  width: 320px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.cuely-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.cuely-card textarea,
+.cuely-card input {
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
-  padding: 10px 11px;
-  color: inherit;
-  background: rgba(255, 255, 255, 0.08);
-  font-size: 14px;
+  font-family: var(--sans);
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  padding: 12px;
+  outline: none;
 }
 
-.mockup-field textarea {
-  resize: vertical;
-  min-height: 72px;
+.cuely-card textarea {
+  resize: none;
 }
 
-.mockup-button {
-  border: 1px solid rgba(10, 132, 255, 0.9);
-  border-radius: 10px;
-  min-height: 38px;
-  padding: 0 13px;
-  color: #f9fbff;
-  background: linear-gradient(180deg, #2f98ff, #0a84ff);
+.cuely-card input {
+  margin-top: 10px;
   font-size: 13px;
-  font-weight: 620;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.cuely-input-mono {
+  font-family: var(--mono) !important;
+  font-size: 12.5px !important;
+}
+
+.cuely-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cuely-preset-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font-family: var(--sans);
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 13px;
   cursor: pointer;
 }
 
-.mockup-button.ghost {
-  border-color: rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.07);
+.cuely-preset-btn span:first-child {
+  font-weight: 500;
 }
 
-.mockup-sidebar-footer {
-  margin-top: auto;
-  font-size: 12px;
-  color: rgba(246, 247, 251, 0.68);
+.cuely-preset-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
 }
 
-.mockup-main {
-  padding: 20px;
-  display: grid;
-  gap: 14px;
-  align-content: start;
-}
-
-.mockup-main-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.mockup-kicker {
-  margin: 0;
-  opacity: 0.7;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-size: 12px;
-}
-
-.mockup-main-header h2 {
-  margin: 6px 0;
-  font-size: 44px;
-  letter-spacing: -0.03em;
-}
-
-.mockup-subline {
-  margin: 0;
-  color: rgba(246, 247, 251, 0.73);
-}
-
-.mockup-actions {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.mockup-status {
-  margin: 0;
-  font-size: 13px;
-  color: rgba(198, 224, 255, 0.92);
-}
-
-.mockup-stage {
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02));
-  padding: 24px;
-  min-height: 230px;
-}
-
-.mockup-stage-kicker,
-.mockup-next-title {
-  margin: 0;
-  font-size: 13px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  opacity: 0.72;
-}
-
-.mockup-stage h3 {
-  margin: 12px 0 0;
-  font-size: 56px;
-  letter-spacing: -0.03em;
-  line-height: 1.08;
-}
-
-.mockup-next {
-  padding: 4px 0;
-}
-
-.mockup-next ol {
-  margin: 8px 0 0;
-  padding-left: 20px;
-  color: rgba(246, 247, 251, 0.86);
-}
-
-.muted {
-  color: rgba(246, 247, 251, 0.56);
-}
-
-.mockup-queue {
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(5, 10, 22, 0.45);
-  padding: 12px;
-}
-
-.mockup-queue-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.mockup-queue-header h4 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.mockup-queue-header p {
+.cuely-composer-hint {
   margin: 0;
   font-size: 12px;
-  opacity: 0.7;
+  color: var(--text-3);
+  line-height: 1.55;
+  padding: 0 4px;
 }
 
-.mockup-queue ol {
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 8px;
+.cuely-cue-list-panel {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.mockup-queue li {
+.cuely-cue-list-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.cuely-cue-list-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.cuely-cue-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.cuely-cue-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 10px;
-  padding: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  padding: 60px 20px;
+  color: var(--text-3);
+  text-align: center;
+  font-size: 13.5px;
 }
 
-.mockup-queue li.active {
-  border-color: rgba(73, 160, 255, 0.62);
-  background: rgba(73, 160, 255, 0.18);
+.cuely-cue-empty-title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 19px;
+  color: var(--text-2);
 }
 
-.mockup-cue-text {
-  border: 0;
-  background: none;
-  color: inherit;
-  text-align: left;
-  width: 100%;
-  font-size: 14px;
-  line-height: 1.4;
+.cuely-cue-row {
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  border-radius: 13px;
+  padding: 14px 15px;
+}
+
+.cuely-cue-row.active {
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
+}
+
+.cuely-cue-row-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+}
+
+.cuely-cue-num {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
   cursor: pointer;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--surface-3);
+  color: var(--text-3);
 }
 
-.mockup-cue-controls {
+.cuely-cue-num.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.cuely-cue-row-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.cuely-cue-row-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.cuely-cue-row-notes {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.cuely-keyword-row {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 9px;
 }
 
-.mockup-cue-controls button {
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
+.cuely-keyword {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+.cuely-edit-area {
+  width: 100%;
+  resize: none;
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--ink);
+  border: 1px solid var(--accent-bd);
+  border-radius: 9px;
+  padding: 9px 11px;
+  outline: none;
+}
+
+.cuely-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cuely-cue-row-tools {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+}
+
+.cuely-icon-btn {
   width: 30px;
   height: 30px;
-  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.cuely-icon-btn.muted {
+  color: var(--text-3);
+}
+
+.cuely-settings {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 26px 36px 36px;
+}
+
+.cuely-settings h1 {
+  margin: 6px 0 22px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 30px;
+  letter-spacing: -0.015em;
+}
+
+.cuely-settings-stack {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cuely-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.cuely-toggle-row {
+  width: 100%;
+  border: none;
+  background: none;
   color: inherit;
   cursor: pointer;
+  text-align: left;
+  padding: 12px 0 4px;
+}
+
+.cuely-setting-hint {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-3);
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+.cuely-mono-muted {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-3);
+  margin-left: 6px;
+  font-weight: 400;
+}
+
+.cuely-segmented {
+  display: flex;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.cuely-segmented button {
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 13px;
+  padding: 7px 15px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-3);
+}
+
+.cuely-segmented button.active {
+  background: var(--surface-3);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.cuely-range {
+  flex: 1;
+  max-width: 300px;
+  accent-color: var(--accent);
+}
+
+.cuely-toggle {
+  width: 42px;
+  height: 25px;
+  border-radius: 13px;
+  flex: none;
+  background: var(--surface-3);
+  position: relative;
+  transition: background 0.15s;
+}
+
+.cuely-toggle.on {
+  background: var(--accent);
+}
+
+.cuely-toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.15s;
+}
+
+.cuely-toggle.on .cuely-toggle-knob {
+  left: 20px;
+}
+
+.cuely-source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.cuely-source-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 13px 15px;
+  border-radius: 11px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.cuely-source-btn.active {
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
+}
+
+.cuely-source-btn strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cuely-source-desc {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-3);
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+.cuely-source-tick {
+  font-size: 14px;
+  color: var(--accent);
+  opacity: 0;
+}
+
+.cuely-source-btn.active .cuely-source-tick {
+  opacity: 1;
+}
+
+.cuely-privacy-note {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-bd);
+  border-radius: 11px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.cuely-shortcuts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.cuely-shortcuts-header .cuely-meta {
+  margin: 0;
+}
+
+.cuely-shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cuely-shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.cuely-shortcut-row strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.cuely-bind-btn {
+  min-width: 96px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.cuely-bind-btn.recording {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.cuely-overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  font-family: var(--sans);
+  background: transparent;
+  pointer-events: none;
+}
+
+.cuely-overlay-float {
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.cuely-overlay-window-root {
+  display: inline-block;
+  width: fit-content;
+  height: fit-content;
+  background: transparent;
+  overflow: visible;
+}
+
+html.cuely-overlay-mode,
+html.cuely-overlay-mode body,
+html.cuely-overlay-mode #root {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.cuely-overlay-panel-windowed {
+  box-sizing: border-box;
+}
+
+.cuely-overlay-drag {
+  -webkit-app-region: drag;
+}
+
+.cuely-overlay-close,
+.cuely-overlay-ghost,
+.cuely-overlay-primary,
+.cuely-overlay-opacity,
+.cuely-overlay-opacity input {
+  -webkit-app-region: no-drag;
+}
+
+.cuely-overlay-panel-wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cuely-overlay-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 13px;
+}
+
+.cuely-overlay-drag {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.cuely-overlay-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4fe3c1;
+  animation: cuely-pulse 1.8s ease-in-out infinite;
+}
+
+.cuely-overlay-brand {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 14px;
+  color: #f4f6f8;
+}
+
+.cuely-overlay-private {
+  font-size: 11.5px;
+  color: rgba(238, 241, 245, 0.5);
+}
+
+.cuely-overlay-progress {
+  flex: 1;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: rgba(238, 241, 245, 0.6);
+}
+
+.cuely-overlay-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eef1f5;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cuely-overlay-next {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 14px 0 0;
+  font-size: 14.5px;
+  color: rgba(238, 241, 245, 0.52);
+}
+
+.cuely-overlay-next-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  flex: none;
+  color: rgba(238, 241, 245, 0.4);
+}
+
+.cuely-overlay-controls {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  flex-wrap: wrap;
+}
+
+.cuely-overlay-controls.compact {
+  margin-top: 12px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.cuely-overlay-ghost {
+  padding: 8px 15px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eef1f5;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cuely-overlay-ghost.sm {
+  padding: 7px 12px;
+  font-weight: 500;
+  font-size: 12px;
+  color: rgba(238, 241, 245, 0.8);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+.cuely-overlay-primary {
+  padding: 8px 16px;
+  border-radius: 9px;
+  border: none;
+  background: #4fe3c1;
+  color: #06150f;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cuely-overlay-hotkeys {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(238, 241, 245, 0.4);
+  font-size: 11px;
+}
+
+.cuely-overlay-hotkeys kbd {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+
+.cuely-overlay-spacer {
+  flex: 1;
+  min-width: 14px;
+}
+
+.cuely-overlay-opacity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(238, 241, 245, 0.45);
+}
+
+.cuely-overlay-opacity input {
+  width: 96px;
+  accent-color: #4fe3c1;
+}
+
+.cuely-overlay-opacity span:last-child {
+  font-size: 11px;
+  color: rgba(238, 241, 245, 0.6);
+  width: 34px;
+  text-transform: none;
+  letter-spacing: normal;
 }

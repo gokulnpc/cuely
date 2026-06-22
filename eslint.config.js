@@ -4,7 +4,7 @@ import tsPlugin from "@typescript-eslint/eslint-plugin";
 
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", "coverage/**"],
+    ignores: ["dist/**", "node_modules/**", "coverage/**", "Qli Brand Kit & Wireframe/**"],
   },
   js.configs.recommended,
   {
@@ -22,6 +22,17 @@ export default [
     rules: {
       ...tsPlugin.configs.recommended.rules,
       "no-undef": "off",
+    },
+  },
+  {
+    files: ["electron/**/*.mjs"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: {
+        URLSearchParams: "readonly",
+        globalThis: "readonly",
+      },
     },
   },
   {
